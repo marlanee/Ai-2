@@ -1,0 +1,12 @@
+# 생성물 / 모델 / 비밀
+test_output/
+output/
+*.safetensors
+*.gguf
+*.ckpt
+*.pt
+*.mp4
+*.wav
+*.mp3
+*.flac
+.env
