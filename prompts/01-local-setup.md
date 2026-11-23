@@ -40,6 +40,10 @@
    - **First-Last-Frame to Video** 템플릿이 쓰는 모델 세트 (14B는 16GB에 맞게 fp8 또는 GGUF Q4~Q5)
    - 속도용 Lightning/LightX2V LoRA가 템플릿에 있으면 함께
    - 대안으로 Wan 2.2 TI2V 5B도 받아서 속도·품질 비교
+3-1. **루프 영상 (비교용)**: LTX-2.5 (Lightricks, LTX-2 Community License: 연매출 $10M 미만 상업 이용 무료)
+   - Hugging Face **게이트 모델**이라 라이선스 동의 + 로그인 필요 → 이 단계에서 멈추고 나에게 요청해.
+   - 16GB용 **양자화 버전**(fp8/int8/GGUF)만 받아. 풀 정밀도는 32GB급이라 안 맞음.
+   - ComfyUI 공식 템플릿 또는 `ComfyUI-LTXVideo`의 **FLF2V(First-Last-Frame)** 워크플로 사용.
 4. **키 아트 이미지**: 상업 이용 가능한 라이선스의 모델 하나 (후보: Z-Image Turbo, Qwen-Image GGUF, SDXL 계열). FLUX.1 [dev]는 라이선스가 까다로우니 고르기 전에 나에게 물어봐.
 5. **후처리**: 업스케일러 `4x-UltraSharp` 또는 `RealESRGAN_x4plus`, 프레임 보간용 커스텀 노드 `ComfyUI-Frame-Interpolation`(RIFE).
    - 커스텀 노드는 ComfyUI-Manager로 설치하고, 설치한 노드 목록을 보고해.
@@ -52,6 +56,8 @@
 2. 이미지: 1344×768 한 장
    프롬프트 예: `1980s Seoul alley at night, rain, neon hangul signs, warm window light, retro anime illustration, cozy, highly detailed`
 3. 루프 영상: 2번 이미지를 **첫 프레임 = 마지막 프레임**으로 넣고 Wan 2.2 FLF2V로 3~5초 클립 (먼저 저해상도 480p로).
+   같은 이미지·같은 모션 프롬프트로 LTX-2.5 FLF2V도 생성해서 비교 표 작성: 생성 시간, VRAM, 루프 이음새 자연스러움, 디테일 유지(간판 글자·빗줄기 뭉개짐), OOM 여부.
+   LTX-2.5가 오디오도 같이 만들 수 있으면 빗소리 앰비언스도 한 번 뽑아봐.
 4. 후처리: 3번 클립을 RIFE로 프레임 보간, 4x 업스케일 1회.
 5. ffmpeg로 3번 클립을 1분으로 반복(`-stream_loop`) + 1번 음악 2곡 크로스페이드 합성 → `test_output/smoke_test.mp4`. 루프 이음새가 튀는지 확인해서 알려줘.
 
