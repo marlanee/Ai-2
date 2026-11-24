@@ -137,7 +137,8 @@ def main():
                               sg.get("fill", 0.8), tuple(color), sg.get("glow", 0), sg.get("blur", 0.6),
                               sg.get("opacity", 1.0))
             flat = Image.alpha_composite(flat, layer)
-        k = sg.get("detail", 1.0)
+        # erase-only signs skip the detail pass: faint old glyphs fall under glyph_thresh and would come back
+        k = sg.get("detail", 1.0 if sg.get("text") else 0.0)
         if k:
             rgb = np.asarray(flat.convert("RGB")).astype(float) + detail * k   # rain passes in front of the text
             flat = Image.fromarray(rgb.clip(0, 255).astype(np.uint8)).convert("RGBA")

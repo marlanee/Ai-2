@@ -222,4 +222,34 @@ models:
     commercial: yes   # 커스텀 노드 ComfyUI-Frame-Interpolation(.pth pickle) 대신 내장 노드 사용
     url: https://huggingface.co/Comfy-Org/frame_interpolation/resolve/main/frame_interpolation/rife_v4.26.safetensors
 
+  # ---------- 간판 글자 편집 ----------
+  - name: Qwen-Image-Edit-2511 int8
+    file: qwen_image_edit_2511_int8_convrot.safetensors
+    path: diffusion_models
+    size_gb: 19.09
+    license: apache-2.0
+    commercial: yes   # Qwen-Image 2.1은 Qwen Research License(비상업)라 제외
+    url: https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_edit_2511_int8_convrot.safetensors
+  - name: Qwen2.5-VL 7B fp8 (Qwen-Image 텍스트 인코더)
+    file: qwen_2.5_vl_7b_fp8_scaled.safetensors
+    path: text_encoders
+    size_gb: 8.74
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors
+  - name: Qwen-Image VAE
+    file: qwen_image_vae.safetensors
+    path: vae
+    size_gb: 0.24
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors
+  - name: Qwen-Image-Edit-2511 Lightning 4-step LoRA
+    file: Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+    path: loras
+    size_gb: 0.79
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors
+
 custom_nodes: []   # 설치한 커스텀 노드 없음 (ComfyUI-Manager 4.2.2는 포터블 기본 포함, --enable-manager로 활성화)
