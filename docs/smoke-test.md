@@ -45,7 +45,10 @@ OOM은 한 번도 나지 않았다. 해상도·길이·양자화를 낮춰 재�
 
 - 모델별 평균: **Stable Audio 13.3점**, ACE-Step 4.0점. 상위 2곡이 모두 Stable Audio였다.
 - Stable Audio는 시드에 따라 편차가 크다(20 / 16 / 4). 곡을 여러 개 뽑아 고르는 방식이 필요하다.
+- 1점 곡(ACE 3곡 + SA3 seed 101)에 대한 평가: "노래가 매끄럽지 않고 듣기 싫음. 불협화음처럼 들림."
+  ACE-Step Turbo는 3곡 모두 이렇게 들렸으므로 시드 문제가 아니라 모델이나 설정 문제로 본다(가능성: keyscale 고정 F major, 8스텝 Turbo, LM 1.7B).
 - 이번 블라인드에는 ACE-Step XL Turbo와 로파이 LoRA 버전이 들어가지 않았다.
+- **결정: 음악 기본 모델은 Stable Audio 3.0 Medium.** 시드마다 편차가 있으므로 여러 곡을 뽑아 고르는 방식으로 운영한다.
 - 라이선스 주의: Stable Audio 3.0은 Stability AI Community License다(연매출 $1M 미만 무료, 상업 이용 시 Stability AI 등록 필요). 수익화 전에 등록해야 한다.
 
 ## 2. 이미지
