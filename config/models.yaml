@@ -1,0 +1,230 @@
+# ComfyUI 모델 목록 (2026-11-24 로컬 셋업)
+# models_root: C:\AI\ComfyUI\ComfyUI\models  (아래 path는 models_root 기준)
+# 출처: ComfyUI 내장 워크플로 템플릿(comfyui-workflow-templates 0.11.111)에 적힌 공식 다운로드 링크
+# commercial: yes = 상업 이용(YouTube 수익화) 가능 / conditional = 조건부 / unclear = 판단 불가 / pending = 미다운로드
+
+models_root: C:\AI\ComfyUI\ComfyUI\models
+
+licenses:
+  mit: https://opensource.org/license/mit
+  apache-2.0: https://www.apache.org/licenses/LICENSE-2.0
+  bsd-3-clause: https://opensource.org/license/bsd-3-clause
+  stability-community: https://stability.ai/community-license-agreement   # 연매출 $1M 미만 무료, 상업 이용 시 Stability AI 등록 필요
+  gemma: https://ai.google.dev/gemma/terms                                # 출력물에 대한 권리 주장 없음, Prohibited Use Policy 준수
+  ltx-2.x-community: https://github.com/Lightricks/LTX-2/blob/main/LICENSE-2_x  # 연매출 $10M 미만 무료
+
+models:
+  # ---------- 음악: ACE-Step 1.5 ----------
+  - name: ACE-Step 1.5 Turbo (2B)
+    file: acestep_v1.5_turbo.safetensors
+    path: diffusion_models
+    size_gb: 4.46
+    license: mit (원본 ACE-Step/Ace-Step1.5) / apache-2.0 (Comfy-Org 재패키징)
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/diffusion_models/acestep_v1.5_turbo.safetensors
+  - name: ACE-Step 1.5 text encoder 0.6B
+    file: qwen_0.6b_ace15.safetensors
+    path: text_encoders
+    size_gb: 1.11
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/text_encoders/qwen_0.6b_ace15.safetensors
+  - name: ACE-Step 1.5 text encoder / LM 1.7B
+    file: qwen_1.7b_ace15.safetensors
+    path: text_encoders
+    size_gb: 3.45
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/text_encoders/qwen_1.7b_ace15.safetensors
+  - name: ACE-Step 1.5 VAE
+    file: ace_1.5_vae.safetensors
+    path: vae
+    size_gb: 0.31
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/vae/ace_1.5_vae.safetensors
+  - name: ACE-Step 1.5 XL Turbo
+    file: acestep_v1.5_xl_turbo_bf16.safetensors
+    path: diffusion_models
+    size_gb: 9.29
+    license: mit / apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/diffusion_models/acestep_v1.5_xl_turbo_bf16.safetensors
+  - name: ACE-Step 1.5 XL LM 4B
+    file: qwen_4b_ace15.safetensors
+    path: text_encoders
+    size_gb: 7.80
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/ace_step_1.5_ComfyUI_files/resolve/main/split_files/text_encoders/qwen_4b_ace15.safetensors
+  - name: Lo-Fi LoRA for ACE-Step 1.5 Turbo (ryanontheinside/lo_fi-acestep1.5-v1)
+    file: lo_fi-v1.safetensors
+    path: loras
+    size_gb: 0.08
+    license: none (모델 카드·저장소에 라이선스 표기 없음)
+    commercial: unclear   # 사용자 승인으로 다운로드. 상업 이용 전 제작자에게 확인 필요. 트리거 단어 roti-l0f1y
+    url: https://huggingface.co/ryanontheinside/lo_fi-acestep1.5-v1/resolve/main/lo_fi-v1.safetensors
+
+  # ---------- 음악(비교): Stable Audio 3.0 Medium ----------
+  - name: Stable Audio 3.0 Medium
+    file: stable_audio_3_medium.safetensors
+    path: checkpoints
+    size_gb: 8.59
+    license: stability-community
+    commercial: conditional   # 연매출 $1M 미만 + Stability AI 등록 필요
+    url: https://huggingface.co/Comfy-Org/stable-audio-3/resolve/main/checkpoints/stable_audio_3_medium.safetensors
+  - name: T5Gemma B-B UL2 (Stable Audio 3 text encoder)
+    file: t5gemma_b_b_ul2.safetensors
+    path: text_encoders
+    size_gb: 1.11
+    license: gemma
+    commercial: yes   # Gemma 약관 3.3: 출력물에 권리 주장 없음
+    url: https://huggingface.co/Comfy-Org/stable-audio-3/resolve/main/text_encoders/t5gemma_b_b_ul2.safetensors
+  - name: Qwen3.5 2B (Stable Audio 3 템플릿의 프롬프트 확장용 LLM, 선택)
+    file: qwen3.5_2b_bf16.safetensors
+    path: text_encoders
+    size_gb: 4.24
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Qwen3.5/resolve/main/text_encoders/qwen3.5_2b_bf16.safetensors
+
+  # ---------- 루프 영상: Wan 2.2 ----------
+  - name: Wan 2.2 I2V 14B high noise (fp8)
+    file: wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors
+    path: diffusion_models
+    size_gb: 13.31
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors
+  - name: Wan 2.2 I2V 14B low noise (fp8)
+    file: wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors
+    path: diffusion_models
+    size_gb: 13.31
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors
+  - name: Wan 2.2 I2V LightX2V 4-step LoRA (high noise)
+    file: wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors
+    path: loras
+    size_gb: 1.14
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_high_noise.safetensors
+  - name: Wan 2.2 I2V LightX2V 4-step LoRA (low noise)
+    file: wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors
+    path: loras
+    size_gb: 1.14
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/loras/wan2.2_i2v_lightx2v_4steps_lora_v1_low_noise.safetensors
+  - name: UMT5-XXL text encoder (fp8)
+    file: umt5_xxl_fp8_e4m3fn_scaled.safetensors
+    path: text_encoders
+    size_gb: 6.27
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Wan_2.1_ComfyUI_repackaged/resolve/main/split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors
+  - name: Wan 2.1 VAE (14B용)
+    file: wan_2.1_vae.safetensors
+    path: vae
+    size_gb: 0.24
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan_2.1_vae.safetensors
+  - name: Wan 2.2 TI2V 5B (fp16)
+    file: wan2.2_ti2v_5B_fp16.safetensors
+    path: diffusion_models
+    size_gb: 9.31
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/diffusion_models/wan2.2_ti2v_5B_fp16.safetensors
+  - name: Wan 2.2 VAE (5B용)
+    file: wan2.2_vae.safetensors
+    path: vae
+    size_gb: 1.31
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan2.2_vae.safetensors
+
+  # ---------- 루프 영상(비교): LTX-2.5 — 게이트 모델, HF 로그인 대기로 미다운로드 ----------
+  - name: LTX-2.5 22B distilled (int8)
+    file: ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors
+    path: diffusion_models
+    size_gb: 20.03
+    license: ltx-2.x-community
+    commercial: conditional   # 연매출 $10M 미만 무료
+    status: pending
+    url: https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors
+  - name: LTX-2.5 Gemma4 12B text encoder (int8)
+    file: gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors
+    path: text_encoders
+    size_gb: 14.32
+    license: ltx-2.x-community / gemma
+    commercial: conditional
+    status: pending
+    url: https://huggingface.co/Lightricks/LTX-2.5/resolve/main/text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors
+  - name: LTX-2.5 video VAE
+    file: ltx-2.5-video-vae-bf16.safetensors
+    path: vae
+    size_gb: 1.37
+    license: ltx-2.x-community
+    commercial: conditional
+    status: pending
+    url: https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-video-vae-bf16.safetensors
+  - name: LTX-2.5 audio VAE
+    file: ltx-2.5-audio-vae-bf16.safetensors
+    path: vae
+    size_gb: 0.34
+    license: ltx-2.x-community
+    commercial: conditional
+    status: pending
+    url: https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-audio-vae-bf16.safetensors
+  - name: Gemma 4 E2B IT (int8, LTX-2.5 템플릿 프롬프트 보조)
+    file: gemma4_e2b_it_int8_convrot.safetensors
+    path: text_encoders
+    size_gb: 4.84
+    license: apache-2.0
+    commercial: yes
+    status: pending
+    url: https://huggingface.co/Comfy-Org/gemma-4/resolve/main/text_encoders/gemma4_e2b_it_int8_convrot.safetensors
+
+  # ---------- 키 아트 이미지: Z-Image Turbo ----------
+  - name: Z-Image Turbo (int8)
+    file: z_image_turbo_int8_convrot.safetensors
+    path: diffusion_models
+    size_gb: 5.78
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/diffusion_models/z_image_turbo_int8_convrot.safetensors
+  - name: Qwen3 4B text encoder (fp8 mixed)
+    file: qwen_3_4b_fp8_mixed.safetensors
+    path: text_encoders
+    size_gb: 5.25
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors
+  - name: Z-Image VAE (ae)
+    file: ae.safetensors
+    path: vae
+    size_gb: 0.31
+    license: apache-2.0
+    commercial: yes
+    url: https://huggingface.co/Comfy-Org/z_image_turbo/resolve/main/split_files/vae/ae.safetensors
+
+  # ---------- 후처리 ----------
+  - name: RealESRGAN x4plus
+    file: RealESRGAN_x4plus.safetensors
+    path: upscale_models
+    size_gb: 0.06
+    license: bsd-3-clause
+    commercial: yes   # 4x-UltraSharp는 CC BY-NC-SA 4.0(비상업)이라 제외
+    url: https://huggingface.co/Comfy-Org/Real-ESRGAN_repackaged/resolve/main/RealESRGAN_x4plus.safetensors
+  - name: RIFE v4.26 (ComfyUI 내장 FrameInterpolate 노드용)
+    file: rife_v4.26.safetensors
+    path: frame_interpolation
+    size_gb: 0.02
+    license: mit (Practical-RIFE) / apache-2.0
+    commercial: yes   # 커스텀 노드 ComfyUI-Frame-Interpolation(.pth pickle) 대신 내장 노드 사용
+    url: https://huggingface.co/Comfy-Org/frame_interpolation/resolve/main/frame_interpolation/rife_v4.26.safetensors
+
+custom_nodes: []   # 설치한 커스텀 노드 없음 (ComfyUI-Manager 4.2.2는 포터블 기본 포함, --enable-manager로 활성화)
