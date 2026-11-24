@@ -43,6 +43,7 @@ def main():
     ap.add_argument("--unit-crf", type=int, default=16)
     ap.add_argument("--static-gain", type=float, default=None,
                     help="dB; replaces loudnorm with fixed gain + limiter (for tracks already loudness-matched)")
+    ap.add_argument("--fade-out", type=float, default=3.0, help="final music fade-out seconds")
     ap.add_argument("--curves", default=None, help="comma list of acrossfade curves per transition (tri, qsin, ...)")
     ap.add_argument("--audio-wav", default=None, help="write only the final audio mix to this WAV and exit")
     ap.add_argument("--xfades", default=None, help="comma list of per-transition crossfade seconds (n-1 values)")
@@ -97,7 +98,7 @@ def main():
     # dynamic single-pass loudnorm drifts gain over long programs; for pre-normalized tracks use a static gain + limiter
     final = (f"volume={a.static_gain}dB,aresample=192000,alimiter=limit=0.78:attack=5:release=80:level=false:latency=true,aresample=48000"
              if a.static_gain is not None else f"loudnorm=I={a.lufs}:TP=-1.5:LRA=11")
-    chains.append(f"[{cur}]afade=t=in:d=2,afade=t=out:st={a.duration - 3}:d=3,{final}[a]")
+    chains.append(f"[{cur}]afade=t=in:d=2,afade=t=out:st={a.duration - a.fade_out}:d={a.fade_out},{final}[a]")
     fc = ";".join(chains)
     if a.audio_wav:
         # audio-only pass (for 2-pass static-gain mastering): same graph, PCM out. Audio inputs are numbered

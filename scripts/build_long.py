@@ -103,13 +103,15 @@ def main():
     ap.add_argument("--listen-pack", action="store_true", help="write MP3 listening pack + index")
     ap.add_argument("--theme", default=None, help="config/themes.json key: description + style names")
     a = ap.parse_args()
-    global DESC, SN, ST
+    global DESC, SN, ST, EN
+    EN = False
     DESC = ["비 내리는 80년대 서울 골목, 레코드 가게와 다방 간판 불빛 아래에서 듣는 시티팝 로파이.",
             "공부·작업·휴식할 때 틀어 두세요. 🌧️☕"]
     SN, ST = dict(STYLE_NAMES), dict(STYLE_TRACK)
     if a.theme:
         th = json.load(open(ROOT / "config" / "themes.json", encoding="utf-8"))[a.theme]
         DESC = th.get("desc", "").split("\\n") or DESC
+        EN = all(ord(c) < 128 for c in "".join(DESC))
         for k, (ko, en) in enumerate(th.get("styles", [])):
             SN[str(k)] = ko; ST[str(k)] = en
     out = pathlib.Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
@@ -163,7 +165,7 @@ def main():
     def compose(extra, gain):
         cmd = [sys.executable, str(ROOT / "scripts" / "compose.py"), "--clip", a.clip, "--music", *map(str, prepped), "--natural",
                "--xfades", ",".join(str(x) for x in xfs), "--curves", ",".join(curves), "--duration", str(a.duration),
-               "--seam", str(a.seam), "--xfade", "8", "--size", "1920x1080", "--ffmpeg", FF.replace("\\", "/"), "--static-gain", f"{gain:.2f}"]
+               "--seam", str(a.seam), "--xfade", "8", "--size", "1920x1080", "--ffmpeg", FF.replace("\\", "/"), "--static-gain", f"{gain:.2f}", "--fade-out", "12"]
         if a.ambience:
             cmd += ["--ambience", a.ambience, "--ambience-db", str(amb_db)]
         if a.duration > 600:
@@ -201,9 +203,11 @@ def main():
     lines = [f"# {a.title}", "", "## 설명", "",
              *DESC, "", "## 챕터"] + [f"{ts(s)} {n}" for s, n in chapters] + \
             ["", "🎵 Tracklist"] + [f"{ts(s)} {ST.get(style(t), 'Track')} {i + 1:02d}" for i, (s, t) in enumerate(zip(starts, seq))] + \
-            ["", "—", "이 영상의 음악·영상·그림은 AI 도구로 생성한 뒤 곡 선별·편성·전환·환경음 믹스를 직접 편집했습니다.",
-             f"Music: {music} · Video: LTX-2.5 (Lightricks) · Image: Qwen-Image-2512, Qwen-Image-Edit-2511",
-             "", "## 업로드 체크", "", "- Studio 'AI 사용(변경되거나 합성된 콘텐츠)' 표시: 예",
+            (["", "—", "Music, visuals and artwork were generated with AI tools, then curated, sequenced, crossfaded and mixed by hand.",
+              f"Music: {music} · Video: LTX-2.5 (Lightricks) · Image: Qwen-Image-2512, Qwen-Image-Edit-2511"] if EN else
+             ["", "—", "이 영상의 음악·영상·그림은 AI 도구로 생성한 뒤 곡 선별·편성·전환·환경음 믹스를 직접 편집했습니다.",
+              f"Music: {music} · Video: LTX-2.5 (Lightricks) · Image: Qwen-Image-2512, Qwen-Image-Edit-2511"]) + \
+            ["", "## 업로드 체크", "", "- Studio 'AI 사용(변경되거나 합성된 콘텐츠)' 표시: 예",
              "- Stability AI Community License(연매출 100만 달러 미만), LTX-2 Community License(1,000만 달러 미만)"] + \
             (["- MiniMax-Music3 Community License: 'MiniMax-Music3' 크레딧 표기(위 설명란)"] if mm else []) + \
             ["", "## 자동 검수", "", f"- 곡 수 {len(seq)}, 첫 색소폰 곡 {next((ts(s) for s, t in zip(starts, seq) if style(t) in a.lead), '없음')}",
