@@ -41,6 +41,8 @@ def main():
     ap.add_argument("--copy-video", action="store_true",
                     help="repeat the encoded loop unit with stream copy (fast for 1h+ videos)")
     ap.add_argument("--unit-crf", type=int, default=16)
+    ap.add_argument("--static-gain", type=float, default=None,
+                    help="dB; replaces loudnorm with fixed gain + limiter (for tracks already loudness-matched)")
     ap.add_argument("--xfades", default=None, help="comma list of per-transition crossfade seconds (n-1 values)")
     ap.add_argument("--natural", action="store_true",
                     help="use each track at full length (no equal slicing); output is cut at --duration")
@@ -88,8 +90,10 @@ def main():
         chains.append(f"[{k}:a]aresample=48000,atrim=0:{a.duration},volume={a.ambience_db}dB[amb]")
         chains.append(f"[{cur}][amb]amix=inputs=2:duration=first:normalize=0[mix]")
         cur = "mix"
-    chains.append(f"[{cur}]afade=t=in:d=2,afade=t=out:st={a.duration - 3}:d=3,"
-                  f"loudnorm=I={a.lufs}:TP=-1.5:LRA=11[a]")
+    # dynamic single-pass loudnorm drifts gain over long programs; for pre-normalized tracks use a static gain + limiter
+    final = (f"volume={a.static_gain}dB,alimiter=limit=0.84:attack=5:release=80" if a.static_gain is not None
+             else f"loudnorm=I={a.lufs}:TP=-1.5:LRA=11")
+    chains.append(f"[{cur}]afade=t=in:d=2,afade=t=out:st={a.duration - 3}:d=3,{final}[a]")
     fc = ";".join(chains)
     if a.copy_video:
         # fast path for long videos: repeat the already-encoded loop unit with the concat demuxer (no re-encode)

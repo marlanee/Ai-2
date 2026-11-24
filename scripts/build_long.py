@@ -96,6 +96,7 @@ def main():
     ap.add_argument("--exclude", nargs="*", default=[]); ap.add_argument("--seam", type=float, default=1.0)
     ap.add_argument("--lead", default="d"); ap.add_argument("--lead-free-min", type=float, default=10)
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--static-gain", type=float, default=None, help="fixed final gain dB instead of loudnorm")
     a = ap.parse_args()
     out = pathlib.Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
     tracks = [p for d in a.pools for p in sorted(pathlib.Path(d).glob("*.flac")) if p.name not in a.exclude]
@@ -125,6 +126,8 @@ def main():
     cmd = [sys.executable, str(ROOT / "scripts" / "compose.py"), "--clip", a.clip, "--music", *map(str, prepped), "--natural",
            "--xfades", ",".join(str(x) for x in xfs), "--duration", str(a.duration), "--seam", str(a.seam), "--xfade", "8",
            "--size", "1920x1080", "--out", str(out), "--ffmpeg", FF.replace("\\", "/")]
+    if a.static_gain is not None:
+        cmd += ["--static-gain", str(a.static_gain)]
     if a.ambience:
         cmd += ["--ambience", a.ambience, "--ambience-db", str(a.ambience_db)]
     if a.duration > 600:
@@ -152,9 +155,10 @@ def main():
     for i in range(1, len(seq)):
         s, xf = starts[i], xfs[i - 1]
         # body of previous track (before its outro) vs body of next track (after the overlap)
-        before = body(max(starts[i - 1] + 5, s - 25), s - 8)
-        after = body(s + xf + 3, s + xf + 18)
-        if before is not None and after is not None and abs(after - before) >= 2:
+        # what a listener hears across the overlap: 3 s right before it vs 3 s right after it
+        before = body(s - 3, s)
+        after = body(s + xf, s + xf + 3)
+        if before is not None and after is not None and abs(after - before) >= 3:
             flags.append((ts(s), round(after - before, 1)))
     # chapters: style blocks merged to ~5-6 chapters
     target = max(5, min(6, int(a.duration // 1200)))
@@ -177,7 +181,7 @@ def main():
              "- Stability AI Community License(연매출 100만 달러 미만), LTX-2 Community License(1,000만 달러 미만)"] + \
             (["- MiniMax-Music3 Community License: 'MiniMax-Music3' 크레딧 표기(위 설명란)"] if mm else []) + \
             ["", "## 자동 검수", "", f"- 곡 수 {len(seq)}, 첫 색소폰 곡 {next((ts(s) for s, t in zip(starts, seq) if style(t) == a.lead), '없음')}",
-             f"- 전환 음량 차 2 LU 이상(청취 필요): {len(flags)}건 " + ", ".join(f"{t}({d:+})" for t, d in flags[:20])]
+             f"- 전환 직전·직후 3초 음량 차 3 LU 이상(청취 권장): {len(flags)}건 " + ", ".join(f"{t}({d:+})" for t, d in flags[:20])]
     out.with_suffix(".youtube.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"wrote {out}; flagged transitions: {len(flags)} {flags[:10]}")
 
