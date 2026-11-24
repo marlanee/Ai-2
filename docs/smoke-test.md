@@ -28,7 +28,25 @@ OOM은 한 번도 나지 않았다. 해상도·길이·양자화를 낮춰 재�
 - 라우드니스: ACE -11.9~-13.8 LUFS, Stable Audio -12.5~-13.1 LUFS. 피크가 모두 0dBFS에 닿아 있다 → 합성 단계에서 `loudnorm`(-14 LUFS / -1 dBTP)으로 정규화한다.
 - 공정한 비교를 위해 Stable Audio 템플릿의 프롬프트 확장 LLM(Qwen3.5 2B)은 껐다(`52:35.value=false`). 켜면 품질이 달라질 수 있다.
 - ACE-Step의 `TextEncodeAceStepAudio1.5`에는 bpm, keyscale, 가사 필드가 따로 있어서 BPM과 키를 프롬프트 밖에서 고정할 수 있다. 채널 운영(일관된 BPM/키 플레이리스트)에 유리하다.
-- 음질 비교는 사람이 직접 들어봐야 한다 → `test_output/blind/A1~A6.flac` 블라인드 테스트 (정답: `answer.txt`).
+- 음질 비교는 사람이 직접 들어봐야 한다 → `test_output/blind/A1~A6.flac` 블라인드 테스트 (정답: `answer.txt`, 채점 페이지: `index.html`).
+
+### 블라인드 테스트 결과 (2026-11-24)
+
+항목: 8090 시티팝·로파이 분위기 / 음질 / 오래 틀어둬도 편안함 / 종합 선호 (각 1~5점, 합계 20점)
+
+| 곡 | 모델 (seed) | 점수 |
+|---|---|---|
+| A1 | Stable Audio 3.0 Medium (202) | 5/5/5/5 = **20** |
+| A5 | Stable Audio 3.0 Medium (303) | 4/4/4/4 = **16** |
+| A6 | Stable Audio 3.0 Medium (101) | 1/1/1/1 = 4 |
+| A2 | ACE-Step 1.5 Turbo (202) | 1/1/1/1 = 4 |
+| A3 | ACE-Step 1.5 Turbo (101) | 1/1/1/1 = 4 |
+| A4 | ACE-Step 1.5 Turbo (303) | 1/1/1/1 = 4 |
+
+- 모델별 평균: **Stable Audio 13.3점**, ACE-Step 4.0점. 상위 2곡이 모두 Stable Audio였다.
+- Stable Audio는 시드에 따라 편차가 크다(20 / 16 / 4). 곡을 여러 개 뽑아 고르는 방식이 필요하다.
+- 이번 블라인드에는 ACE-Step XL Turbo와 로파이 LoRA 버전이 들어가지 않았다.
+- 라이선스 주의: Stable Audio 3.0은 Stability AI Community License다(연매출 $1M 미만 무료, 상업 이용 시 Stability AI 등록 필요). 수익화 전에 등록해야 한다.
 
 ## 2. 이미지
 
