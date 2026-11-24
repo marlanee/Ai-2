@@ -16,7 +16,7 @@ WARM = ["lowshelf=f=120:g=1.5", "highshelf=f=9000:g=-2"]
 GLUE = ["acompressor=threshold=-18dB:ratio=2:attack=30:release=250:makeup=2"]
 WIDE = ["extrastereo=m=1.15"]
 TAPE = ["asoftclip=type=tanh:param=0.9", "vibrato=f=0.3:d=0.02", "lowpass=f=14000"]
-LIM = ["alimiter=limit=0.89:attack=5:release=60"]
+LIM = ["alimiter=limit=0.89:attack=5:release=60:level=false:latency=true"]
 PRESETS = {"clean": BASE + GLUE + LIM, "warm": BASE + WARM + GLUE + WIDE + LIM, "tape": BASE + WARM + TAPE + GLUE + WIDE + LIM}
 
 

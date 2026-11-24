@@ -56,6 +56,8 @@ def main():
     ap.add_argument("--prompt", default=PROMPT)
     ap.add_argument("--title", default="비 오는 밤, 80년대 서울 골목 다방에서 | Korean City Pop Lofi")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--desc", default=None, help="description lines, '\\n' separated (default: Seoul retro text)")
+    ap.add_argument("--tags", default=None)
     ap.add_argument("--mix", nargs="*", default=None, help="pool folders to interleave, tracks at natural length")
     ap.add_argument("--min-len", type=float, default=60, help="skip pool tracks shorter than this (mix mode)")
     ap.add_argument("--master", default=None, choices=["warm", "tape", "clean"], help="master each track first")
@@ -147,9 +149,10 @@ def main():
 
 def write_md(a, out, starts):
     mm = any("mm3" in str(t) for _, t in starts)
-    lines = [f"# {a.title}", "", "## 설명", "",
-             "비 내리는 80년대 서울 골목, 레코드 가게와 다방 간판 불빛 아래에서 듣는 시티팝 로파이.",
-             "공부·작업·휴식할 때 틀어 두세요. 🌧️☕", "", "🎵 Tracklist"]
+    desc = a.desc.split("\\n") if a.desc else [
+        "비 내리는 80년대 서울 골목, 레코드 가게와 다방 간판 불빛 아래에서 듣는 시티팝 로파이.",
+        "공부·작업·휴식할 때 틀어 두세요. 🌧️☕"]
+    lines = [f"# {a.title}", "", "## 설명", ""] + desc + ["", "🎵 Tracklist"]
     for i, (s, _) in enumerate(starts):
         lines.append(f"{ts(s)} Track {i + 1:02d}")
     music = "Stable Audio 3.0 (Powered by Stability AI)" + (", MiniMax-Music3" if mm else "")
@@ -157,7 +160,7 @@ def write_md(a, out, starts):
               f"Music: {music} · Video: LTX-2.5 (Lightricks) · "
               "Image: Qwen-Image-2512, Qwen-Image-Edit-2511",
               "", "## 태그", "",
-              "lofi, city pop, korean city pop, 시티팝, 로파이, 80s, 레트로, 비 오는 날, 공부 음악, 작업 음악, rain, study music",
+              a.tags or "lofi, city pop, korean city pop, 시티팝, 로파이, 80s, 레트로, 비 오는 날, 공부 음악, 작업 음악, rain, study music",
               "", "## 업로드 체크", "", "- YouTube 'AI 생성·변경 콘텐츠' 공개 항목: 예(사실적인 장면 아님이라도 표시 권장)",
               "- Stability AI Community License: 연매출 100만 달러 미만 무료, 상업 이용 시 Stability AI 등록 필요",
               "- LTX-2 Community License: 연매출 1,000만 달러 미만 무료"]

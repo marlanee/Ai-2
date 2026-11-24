@@ -11,9 +11,10 @@ Rules
 - edit table (JSON) is the single source for the mix, tracklist timestamps and chapters.
 - after render: short-term loudness around every transition; |diff| >= 2 LU flagged for listening.
 """
-import argparse, json, math, pathlib, random, re, subprocess, sys
+import argparse, json, math, pathlib, random, re, statistics, subprocess, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "scripts"))
 FF = r"C:\AI\tools\ffmpeg\bin\ffmpeg.exe"
 FP = r"C:\AI\tools\ffmpeg\bin\ffprobe.exe"
 STYLE_NAMES = {"a": "재즈 코드의 밤", "b": "빗속의 기타", "c": "조용한 건반", "d": "늦은 밤 색소폰"}
@@ -54,7 +55,7 @@ def prep(src, cache, target=-16.0):
         subprocess.run([sys.executable, str(ROOT / "scripts" / "master_lofi.py"), str(src), str(tmp), "--preset", "warm"],
                        check=True, capture_output=True)
         g = target - body_loudness(tmp)
-        subprocess.run([FF, "-v", "error", "-y", "-i", str(tmp), "-af", f"volume={g:.2f}dB,alimiter=limit=0.79:attack=5:release=80",
+        subprocess.run([FF, "-v", "error", "-y", "-i", str(tmp), "-af", f"volume={g:.2f}dB,alimiter=limit=0.79:attack=5:release=80:level=false:latency=true",
                         "-ar", "48000", str(o)], check=True)
         tmp.unlink()
     return o
@@ -96,70 +97,80 @@ def main():
     ap.add_argument("--exclude", nargs="*", default=[]); ap.add_argument("--seam", type=float, default=1.0)
     ap.add_argument("--lead", default="d"); ap.add_argument("--lead-free-min", type=float, default=10)
     ap.add_argument("--seed", type=int, default=7)
-    ap.add_argument("--static-gain", type=float, default=None, help="fixed final gain dB instead of loudnorm")
+    ap.add_argument("--target", type=float, default=-14.0, help="final integrated loudness (LUFS) via fixed gain")
+    ap.add_argument("--amb-rel", type=float, default=-18.0, help="ambience body relative to music body (LU)")
+    ap.add_argument("--fast", action="store_true", help="skip per-transition evaluation (tri everywhere)")
+    ap.add_argument("--listen-pack", action="store_true", help="write MP3 listening pack + index")
     a = ap.parse_args()
     out = pathlib.Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
     tracks = [p for d in a.pools for p in sorted(pathlib.Path(d).glob("*.flac")) if p.name not in a.exclude]
     lens = {p: dur(p) for p in tracks}
     tracks = [p for p in tracks if lens[p] >= 60]
     seq = order(tracks, lens, a.duration, a.lead, a.lead_free_min * 60, a.seed)
-    cache = out.parent / "_prep_warm_body16"; cache.mkdir(exist_ok=True)
+    cache = out.parent / "_prep_warm_body16_v2"; cache.mkdir(exist_ok=True)
     prepped = [prep(t, cache) for t in seq]
     plens = [dur(p) for p in prepped]
-    xfs = [8.0 if style(seq[i]) == style(seq[i - 1]) else 5.0 for i in range(1, len(seq))]
+    # --- transitions: agreed rule (audio_qc.choose_transition): D tri / D qsin / short qsin per transition
+    import audio_qc as qc
+    xfs, curves, tq = [], [], []
+    for i in range(1, len(seq)):
+        D, sh = (8.0, 4.0) if style(seq[i]) == style(seq[i - 1]) else (5.0, 2.0)
+        if a.fast:
+            pick = {"d": D, "curve": "tri", "p95": None, "listen": False}
+        else:
+            pick, _ = qc.choose_transition(prepped[i - 1], prepped[i], D, sh)
+        xfs.append(pick["d"]); curves.append(pick["curve"]); tq.append(pick)
     starts, t0 = [0.0], 0.0
     for i in range(1, len(seq)):
         t0 += plens[i - 1] - xfs[i - 1]; starts.append(t0)
     keep = [i for i, s in enumerate(starts) if s < a.duration - 5]
     seq, prepped, plens, starts = [seq[i] for i in keep], [prepped[i] for i in keep], [plens[i] for i in keep], [starts[i] for i in keep]
-    xfs = xfs[:len(seq) - 1]
+    xfs, curves, tq = xfs[:len(seq) - 1], curves[:len(seq) - 1], tq[:len(seq) - 1]
     music_len = starts[-1] + plens[-1]
     if music_len < a.duration:
         sys.exit(f"music {music_len:.0f}s < duration")
     table = {"title": a.title, "duration": a.duration, "tracks": [
         {"n": i + 1, "file": str(seq[i]), "prepped": str(prepped[i]), "style": style(seq[i]), "start": round(starts[i], 2),
-         "len": round(plens[i], 2), "xfade_in": (xfs[i - 1] if i else 0)} for i in range(len(seq))]}
+         "len": round(plens[i], 2), "xfade_in": (xfs[i - 1] if i else 0), "curve_in": (curves[i - 1] if i else None),
+         "xfade_qc": (tq[i - 1] if i else None)} for i in range(len(seq))]}
     (out.with_suffix(".edit.json")).write_text(json.dumps(table, ensure_ascii=False, indent=1), encoding="utf-8")
-    print(f"{len(seq)} tracks, music {music_len:.0f}s, first lead-style at "
-          f"{next((ts(s) for s, t in zip(starts, seq) if style(t) == a.lead), 'none')}", flush=True)
+    print(f"{len(seq)} tracks, music {music_len:.0f}s, curves {curves.count('qsin')} qsin / {curves.count('tri')} tri, "
+          f"first lead-style at {next((ts(s) for s, t in zip(starts, seq) if style(t) == a.lead), 'none')}", flush=True)
 
-    cmd = [sys.executable, str(ROOT / "scripts" / "compose.py"), "--clip", a.clip, "--music", *map(str, prepped), "--natural",
-           "--xfades", ",".join(str(x) for x in xfs), "--duration", str(a.duration), "--seam", str(a.seam), "--xfade", "8",
-           "--size", "1920x1080", "--out", str(out), "--ffmpeg", FF.replace("\\", "/")]
-    if a.static_gain is not None:
-        cmd += ["--static-gain", str(a.static_gain)]
-    if a.ambience:
-        cmd += ["--ambience", a.ambience, "--ambience-db", str(a.ambience_db)]
-    if a.duration > 600:
-        cmd.append("--copy-video")
-    subprocess.run(cmd, check=True)
+    # --- ambience level relative to the music body (tracks are prepped to body -16 LUFS short-term)
+    amb_db = a.ambience_db
+    if a.ambience and a.amb_rel is not None:
+        amb_s = statistics.median([s for _, _, s in qc.measure(a.ambience) if s > -70])
+        amb_db = round((-16.0 + a.amb_rel) - amb_s, 2)
+        print(f"ambience body {amb_s:.1f} LUFS -> gain {amb_db:+.1f} dB (music body -16, rel {a.amb_rel})", flush=True)
 
-    # transition loudness check on the final audio (short-term loudness, 3 s windows outside the overlap)
-    r = subprocess.run([FF, "-hide_banner", "-nostats", "-i", str(out), "-vn", "-af", "ebur128=framelog=info", "-f", "null", "-"],
-                       capture_output=True, text=True, encoding="utf-8", errors="ignore")
-    st = []
-    for line in r.stderr.splitlines():
-        m = re.search(r"t:\s*([\d.]+).*?S:\s*(-?[\d.]+)", line)
-        if m:
-            st.append((float(m.group(1)), float(m.group(2))))
-    def S(t):
-        c = min(st, key=lambda v: abs(v[0] - t)) if st else (0, 0)
-        return c[1]
-    if len(st) < 100:
-        sys.exit(f"loudness log not parsed ({len(st)} frames) - transition check would be meaningless")
-    import statistics
-    def body(t0, t1):
-        v = [s for t, s in st if t0 <= t <= t1 and s > -70]
-        return statistics.median(v) if v else None
-    flags = []
-    for i in range(1, len(seq)):
-        s, xf = starts[i], xfs[i - 1]
-        # body of previous track (before its outro) vs body of next track (after the overlap)
-        # what a listener hears across the overlap: 3 s right before it vs 3 s right after it
-        before = body(s - 3, s)
-        after = body(s + xf, s + xf + 3)
-        if before is not None and after is not None and abs(after - before) >= 3:
-            flags.append((ts(s), round(after - before, 1)))
+    def compose(extra, gain):
+        cmd = [sys.executable, str(ROOT / "scripts" / "compose.py"), "--clip", a.clip, "--music", *map(str, prepped), "--natural",
+               "--xfades", ",".join(str(x) for x in xfs), "--curves", ",".join(curves), "--duration", str(a.duration),
+               "--seam", str(a.seam), "--xfade", "8", "--size", "1920x1080", "--ffmpeg", FF.replace("\\", "/"), "--static-gain", f"{gain:.2f}"]
+        if a.ambience:
+            cmd += ["--ambience", a.ambience, "--ambience-db", str(amb_db)]
+        if a.duration > 600:
+            cmd.append("--copy-video")
+        subprocess.run(cmd + extra, check=True, capture_output=True)
+
+    # --- 2-pass static-gain master (no time-varying loudnorm): measure the unity mix, one fixed gain, verify AAC
+    wav = out.with_suffix(".pass1.wav")
+    compose(["--out", str(out), "--audio-wav", str(wav)], 0.0)
+    I0, tp0 = qc.integrated(wav); wav.unlink()
+    g = a.target - I0
+    # limiter ceiling -2.2 dBFS (sample) leaves room for AAC overshoot; retry once with less gain if TP still > -1.0
+    for attempt in range(2):
+        compose(["--out", str(out)], g)
+        I1, tp1 = qc.integrated(out)
+        print(f"master pass {attempt + 1}: gain {g:+.2f} dB -> {I1:.1f} LUFS, {tp1:.1f} dBTP", flush=True)
+        if tp1 <= -1.0 or attempt == 1:
+            break
+        g -= (tp1 + 1.0) + 0.2
+    flags = [(s, xf, f"{ts(s)} 전환 ({c}, {xf:g}s, 앞뒤 음량차 {q.get('jump', '?')} LU)")
+             for s, xf, c, q in zip(starts[1:], xfs, curves, tq) if q.get("listen")]
+    if a.listen_pack:
+        qc.listen_pack(prepped, out, flags, out.parent / (out.stem + "_listen"))
     # chapters: style blocks merged to ~5-6 chapters
     target = max(5, min(6, int(a.duration // 1200)))
     step = a.duration / target
@@ -181,9 +192,11 @@ def main():
              "- Stability AI Community License(연매출 100만 달러 미만), LTX-2 Community License(1,000만 달러 미만)"] + \
             (["- MiniMax-Music3 Community License: 'MiniMax-Music3' 크레딧 표기(위 설명란)"] if mm else []) + \
             ["", "## 자동 검수", "", f"- 곡 수 {len(seq)}, 첫 색소폰 곡 {next((ts(s) for s, t in zip(starts, seq) if style(t) == a.lead), '없음')}",
-             f"- 전환 직전·직후 3초 음량 차 3 LU 이상(청취 권장): {len(flags)}건 " + ", ".join(f"{t}({d:+})" for t, d in flags[:20])]
+             f"- 크로스페이드: qsin {curves.count('qsin')} / tri {curves.count('tri')} (겹침 내부 편차 기준 자동 선택)",
+             f"- 최종 음량 {I1:.1f} LUFS / {tp1:.1f} dBTP (고정 게인 {g:+.1f} dB, 2-pass)",
+             f"- 청취 권장 전환 {len(flags)}건: " + ", ".join(ts(s) for s, _, _ in flags[:25])]
     out.with_suffix(".youtube.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"wrote {out}; flagged transitions: {len(flags)} {flags[:10]}")
+    print(f"wrote {out}; listen-flagged transitions: {len(flags)}")
 
 
 if __name__ == "__main__":

@@ -101,11 +101,42 @@ def main():
             shutil.copy(outs[0], pool / outs[0].name)
         log(f"music {a.tracks} tracks")
 
+    if st == "variants":
+        # 2 more LTX loops (different seeds) joined with 0.5 s crossfades -> ~14 s unit, less obvious repetition
+        name = f"theme_{a.theme}.png"
+        parts = [out / "loop.mp4"]
+        for seed in (2024, 777):
+            outs, sec = run_wf("video_ltx25_flf2v_int8_api.json", {"251:252.value": th["motion"], "251:250.value": "false",
+                               "251:215.value": 1920, "251:216.value": 1088, "251:198.value": 5, "251:205.value": 24,
+                               "251:196.noise_seed": seed, "31.image": name, "39.image": name,
+                               "68.filename_prefix": f"themes/{a.theme}/loop_s{seed}"}, f"{a.theme}_ltx_s{seed}", 2400)
+            p = out / f"loop_s{seed}.mp4"; shutil.copy(outs[0], p); parts.append(p); log(f"variant {seed} {sec}s")
+        d = float(subprocess.run([FF.replace("ffmpeg.exe", "ffprobe.exe"), "-v", "error", "-show_entries", "format=duration",
+                                  "-of", "csv=p=0", str(parts[0])], capture_output=True, text=True).stdout)
+        subprocess.run([FF, "-v", "error", "-y", "-i", str(parts[0]), "-i", str(parts[1]), "-i", str(parts[2]), "-filter_complex",
+                        f"[0:v][1:v]xfade=transition=fade:duration=0.5:offset={d - 0.5}[ab];"
+                        f"[ab][2:v]xfade=transition=fade:duration=0.5:offset={2 * d - 1.0},format=yuv420p[v]",
+                        "-map", "[v]", "-c:v", "libx264", "-crf", "14", "-preset", "medium", str(out / "loop_abc.mp4")], check=True)
+        log("variants joined -> loop_abc.mp4")
+
+    if st in ("ambience", "all") and th.get("ambience"):
+        # LTX audio is only 5 s -> audible repetition over 2 h. Generate a 120 s bed and loop it with a 3 s crossfade.
+        outs, sec = run_wf("music_stableaudio3_medium_headroom_api.json", {"52:31.value": th["ambience"], "52:35.value": "false",
+                           "52:36.value": 120, "52:3.seed": 4242, "57.filename_prefix": f"themes/{a.theme}/amb_bed"},
+                           f"{a.theme}_ambience", 900)
+        bed = out / "ambience_bed.flac"
+        subprocess.run([FF, "-v", "error", "-y", "-i", str(outs[0]), "-i", str(outs[0]), "-filter_complex",
+                        "[0:a]atrim=3,asetpts=PTS-STARTPTS[a];[1:a]atrim=0:3,asetpts=PTS-STARTPTS[b];"
+                        "[a][b]acrossfade=d=3:c1=qsin:c2=qsin,highpass=f=40", str(bed)], check=True)
+        log(f"ambience bed {sec}s")
+
     if st in ("demo", "all"):
-        subprocess.run([sys.executable, str(ROOT / "scripts" / "make_video.py"), "--clip", str(out / "loop.mp4"), "--seam", "0.5",
+        amb = out / "ambience_bed.flac" if (out / "ambience_bed.flac").exists() else out / "ambience.flac"
+        clip, seam = (out / "loop_abc.mp4", "1.0") if (out / "loop_abc.mp4").exists() else (out / "loop.mp4", "0.5")
+        subprocess.run([sys.executable, str(ROOT / "scripts" / "make_video.py"), "--clip", str(clip), "--seam", seam,
                         "--duration", "300", "--out", str(out / "demo_5min.mp4"), "--mix", str(out / "music"),
-                        "--master", "warm", "--ambience", str(out / "ambience.flac"), "--ambience-db", "-6",
-                        "--title", th["title"]], check=True)
+                        "--master", "warm", "--ambience", str(amb), "--ambience-db", "-10",
+                        "--title", th["title"], "--desc", th.get("desc", ""), "--tags", th.get("tags", "")], check=True)
         subprocess.run([FF, "-v", "error", "-y", "-i", str(out / "demo_5min.mp4"), "-vf", "scale=1280:720:flags=lanczos",
                         "-c:v", "libx264", "-crf", "26", "-preset", "fast", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart",
                         str(out / "demo_5min_preview720.mp4")], check=True)

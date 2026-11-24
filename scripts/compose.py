@@ -43,6 +43,8 @@ def main():
     ap.add_argument("--unit-crf", type=int, default=16)
     ap.add_argument("--static-gain", type=float, default=None,
                     help="dB; replaces loudnorm with fixed gain + limiter (for tracks already loudness-matched)")
+    ap.add_argument("--curves", default=None, help="comma list of acrossfade curves per transition (tri, qsin, ...)")
+    ap.add_argument("--audio-wav", default=None, help="write only the final audio mix to this WAV and exit")
     ap.add_argument("--xfades", default=None, help="comma list of per-transition crossfade seconds (n-1 values)")
     ap.add_argument("--natural", action="store_true",
                     help="use each track at full length (no equal slicing); output is cut at --duration")
@@ -80,9 +82,11 @@ def main():
         trim = "" if a.natural else f"atrim=0:{seg:.3f},"
         chains.append(f"[{i + 1}:a]{trim}asetpts=PTS-STARTPTS,aresample=48000[m{i}]")
     xl = [float(v) for v in a.xfades.split(",")] if a.xfades else [x] * (n - 1)
+    cl = a.curves.split(",") if a.curves else ["tri"] * (n - 1)
     cur = "m0"
     for i in range(1, n):
-        chains.append(f"[{cur}][m{i}]acrossfade=d={xl[i - 1]}:c1=tri:c2=tri[x{i}]")
+        cv = cl[i - 1]
+        chains.append(f"[{cur}][m{i}]acrossfade=d={xl[i - 1]}:c1={cv}:c2={cv}[x{i}]")
         cur = f"x{i}"
     if a.ambience:
         k = n + 1
@@ -91,10 +95,17 @@ def main():
         chains.append(f"[{cur}][amb]amix=inputs=2:duration=first:normalize=0[mix]")
         cur = "mix"
     # dynamic single-pass loudnorm drifts gain over long programs; for pre-normalized tracks use a static gain + limiter
-    final = (f"volume={a.static_gain}dB,alimiter=limit=0.84:attack=5:release=80" if a.static_gain is not None
-             else f"loudnorm=I={a.lufs}:TP=-1.5:LRA=11")
+    final = (f"volume={a.static_gain}dB,alimiter=limit=0.78:attack=5:release=80:level=false:latency=true"
+             if a.static_gain is not None else f"loudnorm=I={a.lufs}:TP=-1.5:LRA=11")
     chains.append(f"[{cur}]afade=t=in:d=2,afade=t=out:st={a.duration - 3}:d=3,{final}[a]")
     fc = ";".join(chains)
+    if a.audio_wav:
+        # audio-only pass (for 2-pass static-gain mastering): same graph, PCM out. Audio inputs are numbered
+        # from 1 (0 = video), so a tiny dummy video input keeps the indices valid.
+        run([a.ffmpeg, "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=16x16:r=1:d=1", *inputs,
+             "-filter_complex", fc, "-map", "[a]", "-t", str(a.duration), "-c:a", "pcm_s24le", "-ar", "48000", a.audio_wav])
+        print(f"wrote {a.audio_wav}")
+        return
     if a.copy_video:
         # fast path for long videos: repeat the already-encoded loop unit with the concat demuxer (no re-encode)
         unit_len = probe_duration(ffprobe, unit)
