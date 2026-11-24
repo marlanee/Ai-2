@@ -117,11 +117,16 @@ def listen_pack(tracks, final_video, flagged, out_dir, first_full=True):
 
 
 def _concat(parts, dst):
-    args, fc = [], []
+    """Cut each part to a temp WAV (one ffmpeg call per part -> no Windows command-line limit), then concat demuxer."""
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="lp_"))
+    sil = tmp / "gap.wav"
+    subprocess.run([FF, "-v", "error", "-y", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-t", "0.7", str(sil)], check=True)
+    lst = []
     for k, (p, s, ln) in enumerate(parts):
-        args += ["-ss", f"{s:.2f}", "-t", f"{ln:.2f}", "-i", str(p)]
-        fc.append(f"[{k}:a]aresample=48000,aformat=channel_layouts=stereo[s{k}];anullsrc=r=48000:cl=stereo,atrim=0:0.7[g{k}]")
-    chain = "".join(f"[s{k}][g{k}]" for k in range(len(parts)))
-    fc.append(f"{chain}concat=n={2 * len(parts)}:v=0:a=1[a]")
-    subprocess.run([FF, "-v", "error", "-y", *args, "-filter_complex", ";".join(fc), "-map", "[a]", "-c:a", "libmp3lame",
+        w = tmp / f"p{k:04d}.wav"
+        subprocess.run([FF, "-v", "error", "-y", "-ss", f"{s:.2f}", "-t", f"{ln:.2f}", "-i", str(p), "-vn", "-ac", "2",
+                        "-ar", "48000", str(w)], check=True)
+        lst += [f"file '{w.as_posix()}'", f"file '{sil.as_posix()}'"]
+    (tmp / "list.txt").write_text("\n".join(lst) + "\n", encoding="utf-8")
+    subprocess.run([FF, "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(tmp / "list.txt"), "-c:a", "libmp3lame",
                     "-b:a", "160k", str(dst)], check=True)

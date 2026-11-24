@@ -95,7 +95,7 @@ def main():
         chains.append(f"[{cur}][amb]amix=inputs=2:duration=first:normalize=0[mix]")
         cur = "mix"
     # dynamic single-pass loudnorm drifts gain over long programs; for pre-normalized tracks use a static gain + limiter
-    final = (f"volume={a.static_gain}dB,alimiter=limit=0.78:attack=5:release=80:level=false:latency=true"
+    final = (f"volume={a.static_gain}dB,aresample=192000,alimiter=limit=0.78:attack=5:release=80:level=false:latency=true,aresample=48000"
              if a.static_gain is not None else f"loudnorm=I={a.lufs}:TP=-1.5:LRA=11")
     chains.append(f"[{cur}]afade=t=in:d=2,afade=t=out:st={a.duration - 3}:d=3,{final}[a]")
     fc = ";".join(chains)

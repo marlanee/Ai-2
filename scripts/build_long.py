@@ -113,12 +113,18 @@ def main():
     # --- transitions: agreed rule (audio_qc.choose_transition): D tri / D qsin / short qsin per transition
     import audio_qc as qc
     xfs, curves, tq = [], [], []
+    xcache_path = cache / "_xfade_choices.json"
+    xcache = json.loads(xcache_path.read_text(encoding="utf-8")) if xcache_path.exists() else {}
     for i in range(1, len(seq)):
         D, sh = (8.0, 4.0) if style(seq[i]) == style(seq[i - 1]) else (5.0, 2.0)
         if a.fast:
             pick = {"d": D, "curve": "tri", "p95": None, "listen": False}
         else:
-            pick, _ = qc.choose_transition(prepped[i - 1], prepped[i], D, sh)
+            key = f"{prepped[i - 1].name}|{prepped[i].name}|{D}|{sh}"
+            if key not in xcache:
+                xcache[key], _ = qc.choose_transition(prepped[i - 1], prepped[i], D, sh)
+                xcache_path.write_text(json.dumps(xcache), encoding="utf-8")
+            pick = xcache[key]
         xfs.append(pick["d"]); curves.append(pick["curve"]); tq.append(pick)
     starts, t0 = [0.0], 0.0
     for i in range(1, len(seq)):
