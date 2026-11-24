@@ -106,6 +106,8 @@ def main():
     ap.add_argument("inp"); ap.add_argument("spec"); ap.add_argument("out")
     ap.add_argument("--debug", default=None, help="also save the image with sign quads outlined")
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--mask", default=None, help="also save a feathered mask of the sign regions")
+    ap.add_argument("--mask-grow", type=int, default=6)
     a = ap.parse_args()
     spec = json.load(open(a.spec, encoding="utf-8"))
     fonts = spec.get("fonts", {})
@@ -122,13 +124,23 @@ def main():
         color = sg.get("color", "auto-dark")
         if isinstance(color, str):
             color = sample_color(arr[m:-m, m:-m], color)
+        orig = arr
         arr = erase(arr, m, sg.get("axis", "xy"))
+        # high-frequency detail of the original (rain streaks, paint texture) minus the old glyphs
+        detail = orig - np.asarray(flat.filter(ImageFilter.GaussianBlur(2))).astype(float)
+        glyph = (np.abs(orig - arr).max(2) > sg.get("glyph_thresh", 45)).astype(np.uint8) * 255
+        glyph = np.asarray(Image.fromarray(glyph).filter(ImageFilter.MaxFilter(5))) > 0
+        detail[glyph] = 0
         flat = Image.fromarray(arr.clip(0, 255).astype(np.uint8)).convert("RGBA")
         if sg.get("text"):
             layer = draw_text((rw, rh), sg["text"], fonts[sg.get("font", "default")], sg.get("vertical", False),
                               sg.get("fill", 0.8), tuple(color), sg.get("glow", 0), sg.get("blur", 0.6),
                               sg.get("opacity", 1.0))
             flat = Image.alpha_composite(flat, layer)
+        k = sg.get("detail", 1.0)
+        if k:
+            rgb = np.asarray(flat.convert("RGB")).astype(float) + detail * k   # rain passes in front of the text
+            flat = Image.fromarray(rgb.clip(0, 255).astype(np.uint8)).convert("RGBA")
         # warp back and paste with a feathered mask (keeps the sign's own edge from the original)
         back = flat.convert("RGB").transform((W, H), Image.PERSPECTIVE, coeffs(quad, rc), Image.BICUBIC)
         mask_flat = Image.new("L", (rw, rh), 0)
@@ -141,6 +153,14 @@ def main():
         img = Image.composite(back, img, mask)
         print(f"sign {sg.get('text')!r:12} color={tuple(color)}")
     img.save(a.out)
+    if a.mask:
+        # white = sign regions (slightly grown, feathered) for a masked img2img touch-up pass
+        mk = Image.new("L", (W, H), 0); d = ImageDraw.Draw(mk)
+        for sg in spec["signs"]:
+            if sg.get("touchup", True):
+                d.polygon([tuple(p) for p in sg["quad"]], fill=255)
+        mk = mk.filter(ImageFilter.MaxFilter(a.mask_grow * 2 + 1)).filter(ImageFilter.GaussianBlur(a.mask_grow))
+        mk.convert("RGB").save(a.mask)
     if a.debug:
         dbg = img.copy(); d = ImageDraw.Draw(dbg)
         for sg in spec["signs"]:
