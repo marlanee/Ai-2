@@ -1,0 +1,274 @@
+{
+ "signs": [
+  {
+   "name": "vertical pink sign",
+   "quad": [
+    [
+     828,
+     -8
+    ],
+    [
+     930,
+     -8
+    ],
+    [
+     930,
+     272
+    ],
+    [
+     828,
+     272
+    ]
+   ],
+   "rect": [
+    102,
+    280
+   ],
+   "margin": 3,
+   "axis": "x",
+   "text": "다방",
+   "vertical": true,
+   "font": "dohyeon",
+   "fill": 0.72,
+   "color": [
+    215,
+    95,
+    150
+   ],
+   "blur": 0.8,
+   "soft": 0.6,
+   "bleed": 0.1
+  },
+  {
+   "name": "orange shop sign",
+   "quad": [
+    [
+     982,
+     264
+    ],
+    [
+     1150,
+     349
+    ],
+    [
+     1152,
+     450
+    ],
+    [
+     980,
+     406
+    ]
+   ],
+   "rect": [
+    320,
+    130
+   ],
+   "margin": 5,
+   "axis": "xy",
+   "text": "할매분식",
+   "font": "dohyeon",
+   "fill": 0.8,
+   "blur": 0.7,
+   "glow": 2,
+   "soft": 0.6,
+   "bleed": 0.1
+  },
+  {
+   "name": "green small sign",
+   "quad": [
+    [
+     1236,
+     423
+    ],
+    [
+     1290,
+     423
+    ],
+    [
+     1290,
+     487
+    ],
+    [
+     1236,
+     487
+    ]
+   ],
+   "rect": [
+    54,
+    64
+   ],
+   "margin": 5,
+   "axis": "xy",
+   "text": "약국",
+   "vertical": true,
+   "font": "dohyeon",
+   "fill": 0.8,
+   "color": [
+    40,
+    140,
+    80
+   ],
+   "blur": 0.3,
+   "soft": 0.9,
+   "bleed": 0.1
+  },
+  {
+   "name": "brown small sign",
+   "quad": [
+    [
+     1322,
+     409
+    ],
+    [
+     1368,
+     409
+    ],
+    [
+     1368,
+     453
+    ],
+    [
+     1322,
+     453
+    ]
+   ],
+   "rect": [
+    46,
+    44
+   ],
+   "margin": 4,
+   "axis": "xy",
+   "text": "사진",
+   "font": "dohyeon",
+   "fill": 0.72,
+   "color": [
+    235,
+    150,
+    85
+   ],
+   "blur": 0.4,
+   "soft": 0.9,
+   "bleed": 0.1
+  },
+  {
+   "name": "pink small sign right",
+   "quad": [
+    [
+     1537,
+     381
+    ],
+    [
+     1587,
+     381
+    ],
+    [
+     1587,
+     453
+    ],
+    [
+     1537,
+     453
+    ]
+   ],
+   "rect": [
+    50,
+    72
+   ],
+   "margin": 5,
+   "axis": "xy",
+   "text": "만화",
+   "vertical": true,
+   "font": "dohyeon",
+   "fill": 0.75,
+   "color": [
+    210,
+    70,
+    125
+   ],
+   "blur": 0.4,
+   "bleed": 0.1
+  },
+  {
+   "name": "chalkboard",
+   "quad": [
+    [
+     938,
+     698
+    ],
+    [
+     988,
+     702
+    ],
+    [
+     1000,
+     852
+    ],
+    [
+     952,
+     852
+    ]
+   ],
+   "rect": [
+    60,
+    170
+   ],
+   "margin": 4,
+   "axis": "xy",
+   "text": "커피",
+   "vertical": true,
+   "font": "jua",
+   "fill": 0.6,
+   "color": [
+    232,
+    170,
+    190
+   ],
+   "opacity": 0.85,
+   "blur": 0.8,
+   "soft": 0.8,
+   "lit": false,
+   "tex": 1.6,
+   "bleed": 0.1
+  },
+  {
+   "name": "big mint lightbox",
+   "quad": [
+    [
+     316,
+     24
+    ],
+    [
+     780,
+     210
+    ],
+    [
+     780,
+     362
+    ],
+    [
+     316,
+     266
+    ]
+   ],
+   "rect": [
+    520,
+    200
+   ],
+   "margin": 8,
+   "axis": "xy",
+   "text": "은하수레코드",
+   "font": "dohyeon",
+   "fill": 0.84,
+   "color": [
+    196,
+    48,
+    62
+   ],
+   "blur": 0.8,
+   "glow": 3,
+   "grain": 1.5,
+   "soft": 0.5,
+   "bleed": 0.1
+  }
+ ]
+}

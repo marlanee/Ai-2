@@ -4,7 +4,9 @@
 # usage: .\scripts\codex_review.ps1 -Image a.png [-Image2 b.png] -Mode ocr|critique [-Out review.md] [-Context "..."]
 # Prints GPT's answer and saves it (default: test_output/reviews/<image>_<mode>.md).
 param([Parameter(Mandatory)][string]$Image, [string]$Image2, [ValidateSet('ocr', 'critique')][string]$Mode = 'ocr',
-      [string]$Out, [string]$Context = '')
+      [string]$Out, [string]$Context = '', [string[]]$Expect = @())
+# -Expect: intended sign texts. Only used AFTER the blind transcription to mark MISMATCH (a valid but wrong
+# syllable such as 식 -> 삭 is still a failure). The model transcribes first, then compares.
 $repo = Split-Path $PSScriptRoot -Parent
 if (-not $Out) {
   $dir = Join-Path $repo 'test_output\reviews'; New-Item -ItemType Directory -Force $dir | Out-Null
@@ -20,6 +22,10 @@ For each: location (e.g. "top-center vertical sign"), the exact transcription sy
   FOREIGN = Latin, Chinese, Japanese or other non-Korean characters
 Answer as a markdown table: | location | transcription | verdict | note |, then one line: "TOTAL: n OK, n BROKEN, n FOREIGN".
 '@
+  if ($Expect.Count) {
+    $q += "`nAFTER the table (never before transcribing), compare your transcriptions with the intended texts: " + ($Expect -join ', ') +
+          ". For every intended text, write 'MATCH' or 'MISMATCH: <what you read>'. A different but valid syllable is a MISMATCH. Final line: 'EXPECT: n MATCH, n MISMATCH'."
+  }
 } else {
   $q = @"
 You are reviewing a key-art image for a Korean 1980s/90s retro lofi music YouTube channel (rainy-night city-pop / lofi, loop video background, also used as the thumbnail). $Context

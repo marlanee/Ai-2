@@ -33,6 +33,13 @@ MODELS = [
     ("text_encoders",    f"{HF}/Comfy-Org/HunyuanVideo_1.5_repackaged/resolve/main/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"),
     ("vae",              f"{HF}/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/vae/qwen_image_vae.safetensors"),
     ("loras",            f"{HF}/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/main/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"),
+    # MiniMax Music 3 (MiniMax-Music3 Community License: free commercial < $20M/yr, display "MiniMax-Music3")
+    ("diffusion_models", f"{HF}/Comfy-Org/MiniMax-Music-3/resolve/main/diffusion_models/minimax_music3_dit_int8_convrot.safetensors"),
+    ("text_encoders",    f"{HF}/Comfy-Org/MiniMax-Music-3/resolve/main/text_encoders/minimax_music3_text_encoder_pruned_int8_convrot.safetensors"),
+    ("vae",              f"{HF}/Comfy-Org/MiniMax-Music-3/resolve/main/vae/minimax_music3_dav.safetensors"),
+    # Qwen-Image-2512 (Apache 2.0) + Lightning 4-step LoRA (Apache 2.0)
+    ("diffusion_models", f"{HF}/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_2512_fp8_e4m3fn.safetensors"),
+    ("loras",            f"{HF}/lightx2v/Qwen-Image-2512-Lightning/resolve/main/Qwen-Image-2512-Lightning-4steps-V1.0-fp32.safetensors"),
 ]
 
 def remote_size(url):
