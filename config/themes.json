@@ -1,0 +1,26 @@
+{
+  "cyberpunk": {
+    "title": "Neon Rain City | Cyberpunk Lofi Synthwave for Night Coding",
+    "image": "A vast cyberpunk megacity at night seen from a high apartment balcony, wide 16:9 view, endless towers with glowing magenta and cyan neon light strips, holographic koi fish drifting between buildings, flying cars leaving light trails, heavy rain, low clouds lit from below, a small cozy balcony with a potted plant and a steaming mug in the foreground, cinematic anime illustration, rich detail, moody and calm. Neon signs are pure abstract shapes and light strips with no letters. Absolutely no text, no letters, no numbers, no logos anywhere.",
+    "negative": "文字，字母，数字，标志，水印，乱码，人物，低画质，过饱和，模糊",
+    "motion": "rain falling steadily, neon light strips pulsing slowly, holographic koi fish swimming gently, flying cars gliding far away, steam rising from the mug, static camera, seamless loop. Audio: soft rain on glass, distant city hum, no music, no voices.",
+    "music": [
+      "dark synthwave lofi instrumental, warm analog synth pads, slow arpeggiator, deep sub bass, soft gated drums, 80 BPM, A minor, night drive, rainy cyberpunk city, calm and hypnotic",
+      "chillwave lofi beat, detuned retro synths, mellow electric piano, vinyl crackle, soft rain, 75 BPM, D minor, futuristic and melancholic, instrumental",
+      "ambient cyberpunk downtempo, glassy FM synth bells, smooth bassline, brushed electronic drums, 70 BPM, F minor, neon night, relaxing focus music, instrumental",
+      "retro futuristic lofi hip hop, saw synth chords with low-pass filter, boom bap drums, tape wobble, 82 BPM, E minor, late night coding, instrumental"
+    ]
+  },
+  "dystopia": {
+    "title": "After the Fall | Dystopian Ambient Lofi for Deep Focus",
+    "image": "A quiet post-apocalyptic city at dusk, wide 16:9 view from a broken rooftop garden, overgrown skyscrapers covered in vines, a collapsed highway, soft ash falling like snow, a single warm lantern and an old radio on a wooden crate in the foreground, distant searchlights sweeping a hazy orange-grey sky, cinematic anime illustration, melancholic but peaceful, painterly detail. Absolutely no text, no letters, no numbers, no signs with writing, no logos anywhere.",
+    "negative": "文字，字母，数字，标志，水印，乱码，人物，血腥，低画质，过饱和，模糊",
+    "motion": "soft ash drifting down slowly, lantern flame flickering gently, searchlights sweeping slowly in the haze, vines swaying slightly in the wind, static camera, seamless loop. Audio: gentle wind, faint crackle of an old radio, distant rumble, no music, no voices.",
+    "music": [
+      "dystopian ambient lofi instrumental, warm detuned piano, distant tape-saturated pads, slow muffled drums, 68 BPM, C minor, melancholic and peaceful, deep focus",
+      "post-apocalyptic downtempo, lonely clean guitar with reverb, soft analog drone, dusty vinyl, 70 BPM, G minor, quiet hope, instrumental",
+      "cinematic dark lofi beat, low strings, soft sub bass, lo-fi drums, radio static texture, 72 BPM, D minor, abandoned city at dusk, instrumental",
+      "ambient lofi, music box melody over warm drone, gentle rain of ash, minimal percussion, 65 BPM, E minor, calm and nostalgic, instrumental"
+    ]
+  }
+}

@@ -51,13 +51,70 @@ def main():
     ap.add_argument("--ambience", default=None)
     ap.add_argument("--ambience-db", type=float, default=-4)
     ap.add_argument("--xfade", type=float, default=8)
+    ap.add_argument("--seam", type=float, default=0.5, help="loop-seam crossfade seconds")
     ap.add_argument("--seed-start", type=int, default=1000)
     ap.add_argument("--prompt", default=PROMPT)
     ap.add_argument("--title", default="비 오는 밤, 80년대 서울 골목 다방에서 | Korean City Pop Lofi")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--mix", nargs="*", default=None, help="pool folders to interleave, tracks at natural length")
+    ap.add_argument("--min-len", type=float, default=60, help="skip pool tracks shorter than this (mix mode)")
+    ap.add_argument("--master", default=None, choices=["warm", "tape", "clean"], help="master each track first")
     a = ap.parse_args()
 
     tracks = [pathlib.Path(p) for p in a.first]
+    if a.mix:
+        # natural-length mode: interleave several pools (e.g. SA3 + MiniMax), each track at full length
+        pools = [sorted(p for p in pathlib.Path(d).glob("*.flac") if p.name not in a.exclude) for d in a.mix]
+        lens = {}
+        for pl in pools:
+            for p in pl:
+                lens[p] = dur(p)
+        pools = [[p for p in pl if lens[p] >= a.min_len] for pl in pools]
+        seq, i = list(tracks), 0
+        for t in seq:
+            lens.setdefault(t, dur(t))
+        total = sum(lens[t] for t in seq) - a.xfade * max(0, len(seq) - 1)
+        while total < a.duration + 2 and any(pools):
+            pl = pools[i % len(pools)]; i += 1
+            if not pl:
+                continue
+            t = pl.pop(0)
+            if t in seq:
+                continue
+            seq.append(t); total += lens[t] - a.xfade
+        if total < a.duration:
+            sys.exit(f"pools too short: {total:.0f}s < {a.duration}s")
+        print(f"{len(seq)} tracks (natural length), music {total:.0f}s")
+        if a.dry_run:
+            return
+        if a.master:
+            mdir = pathlib.Path(a.out).parent / f"_master_{a.master}"; mdir.mkdir(parents=True, exist_ok=True)
+            mastered = []
+            for t in seq:
+                o = mdir / (pathlib.Path(t).stem + ".flac")
+                if not o.exists():
+                    subprocess.run([sys.executable, str(ROOT / "scripts" / "master_lofi.py"), str(t), str(o),
+                                    "--preset", a.master], check=True, capture_output=True)
+                mastered.append(o)
+            play = mastered
+        else:
+            play = seq
+        out = pathlib.Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
+        cmd = [sys.executable, str(ROOT / "scripts" / "compose.py"), "--clip", a.clip, "--music", *map(str, play),
+               "--natural", "--duration", str(a.duration), "--seam", str(a.seam), "--xfade", str(a.xfade),
+               "--size", "1920x1080", "--out", str(out), "--ffmpeg", FF]
+        if a.ambience:
+            cmd += ["--ambience", a.ambience, "--ambience-db", str(a.ambience_db)]
+        if a.duration > 600:
+            cmd.append("--copy-video")
+        subprocess.run(cmd, check=True)
+        starts, t0 = [], 0.0
+        for t in seq:
+            if t0 >= a.duration - 5:
+                break
+            starts.append((t0, t)); t0 += lens[t] - a.xfade
+        write_md(a, out, starts)
+        return
     pool = sorted(p for p in pathlib.Path(a.pool).glob("*.flac") if p.name not in a.exclude)
     tracks += [p for p in pool if p.resolve() not in {t.resolve() for t in tracks}]
     tlen = 120.0
@@ -78,28 +135,35 @@ def main():
         return
     out = pathlib.Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
     cmd = [sys.executable, str(ROOT / "scripts" / "compose.py"), "--clip", a.clip, "--music", *map(str, tracks),
-           "--duration", str(a.duration), "--seam", "0.5", "--xfade", str(a.xfade), "--size", "1920x1080",
+           "--duration", str(a.duration), "--seam", str(a.seam), "--xfade", str(a.xfade), "--size", "1920x1080",
            "--out", str(out), "--ffmpeg", FF]
     if a.ambience:
         cmd += ["--ambience", a.ambience, "--ambience-db", str(a.ambience_db)]
     if a.duration > 600:
         cmd.append("--copy-video")
     subprocess.run(cmd, check=True)
+    write_md(a, out, [(i * (seg - a.xfade), t) for i, t in enumerate(tracks)])
 
+
+def write_md(a, out, starts):
+    mm = any("mm3" in str(t) for _, t in starts)
     lines = [f"# {a.title}", "", "## 설명", "",
-             "비 내리는 80년대 서울 골목, 다방 간판 불빛 아래에서 듣는 시티팝 로파이.",
+             "비 내리는 80년대 서울 골목, 레코드 가게와 다방 간판 불빛 아래에서 듣는 시티팝 로파이.",
              "공부·작업·휴식할 때 틀어 두세요. 🌧️☕", "", "🎵 Tracklist"]
-    for i in range(n):
-        lines.append(f"{ts(i * (seg - a.xfade))} Track {i + 1:02d}")
+    for i, (s, _) in enumerate(starts):
+        lines.append(f"{ts(s)} Track {i + 1:02d}")
+    music = "Stable Audio 3.0 (Powered by Stability AI)" + (", MiniMax-Music3" if mm else "")
     lines += ["", "—", "이 영상의 음악·영상·그림은 AI 도구로 제작했습니다.",
-              "Music: Stable Audio 3.0 (Powered by Stability AI) · Video: LTX-2.5 (Lightricks) · "
-              "Image: Z-Image Turbo, Qwen-Image-Edit-2511",
+              f"Music: {music} · Video: LTX-2.5 (Lightricks) · "
+              "Image: Qwen-Image-2512, Qwen-Image-Edit-2511",
               "", "## 태그", "",
               "lofi, city pop, korean city pop, 시티팝, 로파이, 80s, 레트로, 비 오는 날, 공부 음악, 작업 음악, rain, study music",
               "", "## 업로드 체크", "", "- YouTube 'AI 생성·변경 콘텐츠' 공개 항목: 예(사실적인 장면 아님이라도 표시 권장)",
               "- Stability AI Community License: 연매출 100만 달러 미만 무료, 상업 이용 시 Stability AI 등록 필요",
-              "- LTX-2 Community License: 연매출 1,000만 달러 미만 무료",
-              "", "## 사용한 트랙 파일", ""] + [f"- Track {i + 1:02d}: {t}" for i, t in enumerate(tracks)]
+              "- LTX-2 Community License: 연매출 1,000만 달러 미만 무료"]
+    if mm:
+        lines.append("- MiniMax-Music3 Community License: 상업 이용 시 \"MiniMax-Music3\" 표기 필요(설명란 크레딧에 포함)")
+    lines += ["", "## 사용한 트랙 파일", ""] + [f"- Track {i + 1:02d}: {t}" for i, (_, t) in enumerate(starts)]
     md = out.with_suffix(".youtube.md")
     md.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("wrote", out, "and", md)

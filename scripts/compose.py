@@ -41,6 +41,9 @@ def main():
     ap.add_argument("--copy-video", action="store_true",
                     help="repeat the encoded loop unit with stream copy (fast for 1h+ videos)")
     ap.add_argument("--unit-crf", type=int, default=16)
+    ap.add_argument("--xfades", default=None, help="comma list of per-transition crossfade seconds (n-1 values)")
+    ap.add_argument("--natural", action="store_true",
+                    help="use each track at full length (no equal slicing); output is cut at --duration")
     a = ap.parse_args()
 
     ff = pathlib.Path(a.ffmpeg)
@@ -72,10 +75,12 @@ def main():
     inputs, chains = [], []
     for i, m in enumerate(a.music):
         inputs += ["-i", m]
-        chains.append(f"[{i + 1}:a]atrim=0:{seg:.3f},asetpts=PTS-STARTPTS,aresample=48000[m{i}]")
+        trim = "" if a.natural else f"atrim=0:{seg:.3f},"
+        chains.append(f"[{i + 1}:a]{trim}asetpts=PTS-STARTPTS,aresample=48000[m{i}]")
+    xl = [float(v) for v in a.xfades.split(",")] if a.xfades else [x] * (n - 1)
     cur = "m0"
     for i in range(1, n):
-        chains.append(f"[{cur}][m{i}]acrossfade=d={x}:c1=tri:c2=tri[x{i}]")
+        chains.append(f"[{cur}][m{i}]acrossfade=d={xl[i - 1]}:c1=tri:c2=tri[x{i}]")
         cur = f"x{i}"
     if a.ambience:
         k = n + 1
