@@ -15,7 +15,9 @@ VIRTUAL = {"PrimitiveNode", "Reroute", "Note", "MarkdownNote"}
 
 def is_widget(spec):
     t = spec[0]
-    return isinstance(t, list) or t in WIDGET_TYPES
+    opts = spec[1] if len(spec) > 1 and isinstance(spec[1], dict) else {}
+    # multi-type inputs such as "FLOAT,INT" declare their widget via widgetType
+    return isinstance(t, list) or t in WIDGET_TYPES or opts.get("widgetType") in WIDGET_TYPES
 
 
 def has_control(name, spec):
@@ -82,15 +84,13 @@ class Converter:
             if t in self.subgraphs:
                 sg = self.subgraphs[t]
                 inner_in = {}
-                wv = list(n.get("widgets_values") or [])
                 for k, sgi in enumerate(sg.get("inputs", [])):
-                    # match outer input by name
+                    # match outer input by name; only real links are carried in.
+                    # Unlinked promoted widgets keep the inner node's own widget value
+                    # (the outer widgets_values order is not reliable across frontend versions).
                     idx = next((j for j, i in enumerate(ins) if i.get("name") == sgi.get("name")), None)
                     if idx is not None and idx in linked:
                         inner_in[k] = linked[idx]
-                    elif idx is not None and ins[idx].get("widget") and wv:
-                        inner_in[k] = ("const", wv.pop(0))
-                # promoted widgets (proxyWidgets) override inner widget values
                 self.scope(sg.get("nodes", []), sg.get("links", []), f"{fid}:", inner_in)
                 sl = link_table(sg.get("links", []))
                 for lid, (o, os_, tg, ts) in sl.items():

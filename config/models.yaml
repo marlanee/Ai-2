@@ -1,7 +1,7 @@
 # ComfyUI 모델 목록 (2026-11-24 로컬 셋업)
 # models_root: C:\AI\ComfyUI\ComfyUI\models  (아래 path는 models_root 기준)
 # 출처: ComfyUI 내장 워크플로 템플릿(comfyui-workflow-templates 0.11.111)에 적힌 공식 다운로드 링크
-# commercial: yes = 상업 이용(YouTube 수익화) 가능 / conditional = 조건부 / unclear = 판단 불가 / pending = 미다운로드
+# commercial: yes = 상업 이용(YouTube 수익화) 가능 / conditional = 조건부 / unclear = 판단 불가
 
 models_root: C:\AI\ComfyUI\ComfyUI\models
 
@@ -146,14 +146,13 @@ models:
     commercial: yes
     url: https://huggingface.co/Comfy-Org/Wan_2.2_ComfyUI_Repackaged/resolve/main/split_files/vae/wan2.2_vae.safetensors
 
-  # ---------- 루프 영상(비교): LTX-2.5 — 게이트 모델, HF 로그인 대기로 미다운로드 ----------
+  # ---------- 루프 영상(비교): LTX-2.5 — 게이트 모델 (HF 라이선스 동의 + hf auth login 후 hf download) ----------
   - name: LTX-2.5 22B distilled (int8)
     file: ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors
     path: diffusion_models
     size_gb: 20.03
     license: ltx-2.x-community
     commercial: conditional   # 연매출 $10M 미만 무료
-    status: pending
     url: https://huggingface.co/Lightricks/LTX-2.5/resolve/main/diffusion_models/ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors
   - name: LTX-2.5 Gemma4 12B text encoder (int8)
     file: gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors
@@ -161,7 +160,6 @@ models:
     size_gb: 14.32
     license: ltx-2.x-community / gemma
     commercial: conditional
-    status: pending
     url: https://huggingface.co/Lightricks/LTX-2.5/resolve/main/text_encoders/gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors
   - name: LTX-2.5 video VAE
     file: ltx-2.5-video-vae-bf16.safetensors
@@ -169,7 +167,6 @@ models:
     size_gb: 1.37
     license: ltx-2.x-community
     commercial: conditional
-    status: pending
     url: https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-video-vae-bf16.safetensors
   - name: LTX-2.5 audio VAE
     file: ltx-2.5-audio-vae-bf16.safetensors
@@ -177,7 +174,6 @@ models:
     size_gb: 0.34
     license: ltx-2.x-community
     commercial: conditional
-    status: pending
     url: https://huggingface.co/Lightricks/LTX-2.5/resolve/main/vae/ltx-2.5-audio-vae-bf16.safetensors
   - name: Gemma 4 E2B IT (int8, LTX-2.5 템플릿 프롬프트 보조)
     file: gemma4_e2b_it_int8_convrot.safetensors
@@ -185,7 +181,6 @@ models:
     size_gb: 4.84
     license: apache-2.0
     commercial: yes
-    status: pending
     url: https://huggingface.co/Comfy-Org/gemma-4/resolve/main/text_encoders/gemma4_e2b_it_int8_convrot.safetensors
 
   # ---------- 키 아트 이미지: Z-Image Turbo ----------

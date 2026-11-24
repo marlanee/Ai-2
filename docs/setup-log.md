@@ -58,7 +58,7 @@ python_embeded\python.exe -s ComfyUI\main.py --windows-standalone-build --listen
   - 로파이 LoRA(라이선스 표기 없음)도 받음 → 상업 이용 전에 제작자 확인 필요
   - 업스케일러: 4x-UltraSharp(CC BY-NC-SA, 비상업) 대신 RealESRGAN_x4plus(BSD-3)
   - 프레임 보간: 내장 RIFE 노드
-- **LTX-2.5는 보류.** 게이트 모델이라 HF 라이선스 동의와 `hf auth login`이 필요하다. 동의는 끝났지만 토큰 입력이 실패했다(아래).
+- **LTX-2.5** (게이트 모델): 사용자가 HF에서 라이선스에 동의하고, 별도 PowerShell 창에서 `hf auth login`을 실행했다. 그 뒤 `hf download Lightricks/LTX-2.5 <파일...> --local-dir C:\AI\ComfyUI\ComfyUI\models`로 받았다(약 41GB). 저장소 폴더 구조가 ComfyUI `models` 하위 폴더 이름과 같아서 그대로 맞는 위치에 들어간다. `models\.cache\huggingface`에 메타데이터만 남는다.
 
 ## 3. 겪은 문제와 해결
 
@@ -68,7 +68,9 @@ python_embeded\python.exe -s ComfyUI\main.py --windows-standalone-build --listen
 | `SaveAudioAdvanced.execute() missing 'format'` | `format`이 `COMFY_DYNAMICCOMBO_V3` 타입. API에서는 `format` + `format.quality`로 나뉨 | 변환기에 동적 콤보 하위 위젯 처리 추가 |
 | Wan FLF2V 템플릿의 기본 경로가 20스텝 | LightX2V 4스텝 경로는 바이패스 상태로 들어 있음 | 두 경로의 mode를 뒤집은 4스텝 변형을 만들어 사용 (`workflows/video_wan22_flf2v_14b_4step_api.json`) |
 | Wan 5B 템플릿에서 시작 이미지 노드가 꺼져 있음 | 템플릿 기본값이 T2V | API JSON에 `LoadImage`를 추가해 `start_image`에 연결 |
-| `hf auth login` 2회 실패 (`Invalid user token`, `Bad request`) | 앱 내장 터미널에서 숨김 입력에 붙여넣을 때 토큰이 깨진 것으로 추정 | 별도 PowerShell 창에서 다시 시도하기로 함 (진행 중) |
+| `hf auth login` 2회 실패 (`Invalid user token`, `Bad request`) | 앱 내장 터미널에서 숨김 입력에 붙여넣을 때 토큰이 깨진 것으로 추정 | `Start-Process powershell`로 띄운 별도 창에서 성공 |
+| LTX 템플릿 변환 시 로더에 엉뚱한 값(`VAELoader vae_name=24` 등) | 서브그래프 바깥 노드의 promoted widget 값 순서가 입력 순서와 다름 | 바깥에서 연결되지 않은 입력은 안쪽 노드의 위젯 값을 쓰도록 변경 |
+| `LTXVEmptyLatentAudio` batch_size=25 → 텐서 크기 오류 | `frame_rate` 타입이 `"FLOAT,INT"`(widgetType으로 위젯 표시)라 위젯으로 인식하지 못함 | `widgetType` 옵션도 위젯으로 인식하도록 수정. 기존 워크플로는 다시 변환해 결과가 같은지 확인 |
 | ffprobe 경로 계산 버그 (`ffmpeg\bin\ffmpeg.exe` 전체 치환) | 문자열 replace가 폴더 이름까지 바꿈 | 파일 이름만 치환하도록 수정 |
 | Python `-I` 실행 시 콘솔 cp949 인코딩 오류 | `-I`가 `PYTHONIOENCODING`을 무시 | `sys.stdout.reconfigure(encoding="utf-8")` |
 

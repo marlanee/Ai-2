@@ -15,7 +15,7 @@
 | 2 | Z-Image Turbo int8 | 1344×768, 8스텝 res_multistep, seed 1980 | 19.1초 | 14.1 GB | ✅ |
 | 3a | Wan 2.2 FLF2V 14B fp8 + LightX2V | 832×480, 81프레임(16fps, 5.06초), 4스텝, 첫 프레임 = 마지막 프레임 | 184.1초 | 14.2 GB | ✅ |
 | 3b | Wan 2.2 TI2V 5B fp16 (비교) | 832×480, 121프레임(24fps, 5.04초), 20스텝, I2V(첫 프레임만) | 213.5초 | 15.8 GB | ✅ 생성 성공, 루프용으로는 부적합 |
-| 3c | LTX-2.5 FLF2V | - | - | - | ⏸ 보류 (HF 로그인 대기) |
+| 3c | LTX-2.5 22B distilled int8 FLF2V | 832×480, 121프레임(24fps, 5.04초), 8스텝 distilled, 첫 프레임 = 마지막 프레임, 프롬프트 확장 끔, 빗소리 오디오 동시 생성 | 97.5초 | 15.5 GB | ✅ |
 | 4a | RIFE v4.26 ×2 (내장 노드) | 3a 클립, 16→32fps, 81→161프레임 | 6.1초 | 측정 불가(샘플링 간격보다 짧음) | ✅ |
 | 4b | RealESRGAN x4plus | 3a 클립, 832×480 → 3328×1920, 81프레임 | 184.3초 | 6.0 GB | ✅ |
 | 5 | ffmpeg 합성 | 4a 클립을 루프 단위로 만들어 60초 반복 + ACE 2곡 8초 크로스페이드, -14 LUFS | 수 초 | - | ✅ `test_output/smoke_test.mp4` |
@@ -39,18 +39,26 @@ OOM은 한 번도 나지 않았다. 해상도·길이·양자화를 낮춰 재�
 
 ### 비교 표
 
-| 항목 | Wan 2.2 FLF2V 14B (4스텝) | Wan 2.2 TI2V 5B | LTX-2.5 FLF2V |
+| 항목 | Wan 2.2 FLF2V 14B (4스텝) | Wan 2.2 TI2V 5B | LTX-2.5 FLF2V int8 |
 |---|---|---|---|
-| 생성 시간 | 184초 (5초 클립) | 214초 (5초 클립) | 보류 |
-| 최대 VRAM | 14.2 GB | 15.8 GB | 보류 |
-| 첫/끝 프레임 고정 | 가능 (FLF) | 불가 (첫 프레임만) | 가능 (예정) |
-| 프레임 간 평균 변화량 | 0.69 (잔잔함) | 8.09 (조명·카메라가 크게 바뀜) | - |
-| 첫 프레임 vs 끝 프레임 SSIM | 0.995 | 0.876 | - |
-| 디테일 유지 | 간판 글자·창문 유지. 빗줄기는 가늘게 표현되고 뭉개짐 없음 | 중간에 파란 조명이 튀고 카메라가 흔들림 | - |
-| OOM | 없음 | 없음 | - |
-| 오디오 생성 | 없음 | 없음 | LTX는 가능 (보류) |
+| 생성 시간 (5초 클립) | 184초 | 214초 | **97.5초** |
+| 최대 VRAM | 14.2 GB | 15.8 GB | 15.5 GB (여유 적음) |
+| 첫/끝 프레임 고정 | 가능 (FLF) | 불가 (첫 프레임만) | 가능 (FLF, guide strength 0.7) |
+| 프레임 수 / fps | 81 / 16 | 121 / 24 | 121 / 24 |
+| 프레임 간 평균 변화량 (최대) | 0.69 (2.38) | 8.09 (26.99) | 0.50 (0.92) |
+| 원본 이음새(끝→처음) | 4.30 | 14.23 | **2.08** |
+| 이음새 0.5초 보정 후 / 평소 최대 | 1.74 / 1.08 (RIFE 32fps) | - | **1.23 / 0.86** |
+| 첫 프레임 vs 끝 프레임 SSIM | 0.995 | 0.876 | 0.998 |
+| 디테일 유지 | 간판 글자·창문 유지. 빗줄기 뭉개짐 없음 | 중간에 파란 조명이 튀고 카메라가 흔들림 | 간판 글자·창문 유지. 빗줄기는 Wan보다 약하게 보임 |
+| OOM | 없음 | 없음 | 없음 |
+| 오디오 생성 | 없음 | 없음 | ✅ 빗소리 앰비언스 (-29.7 LUFS, 48kHz) |
 
-→ **루프 영상은 Wan 2.2 FLF2V 14B + LightX2V 4스텝을 기본으로 추천.** 5B는 루프용으로 부적합하다.
+→ **두 FLF2V 모두 루프용으로 쓸 수 있다.** LTX-2.5는 2배 가까이 빠르고, 이음새가 작고, 빗소리까지 만들어 준다. 반면 VRAM 여유가 적고(15.5/16GB), 라이선스에 연매출 $10M 조건이 붙는다. Wan은 빗줄기 움직임이 더 뚜렷하다. **5B는 루프용으로 부적합하다.**
+→ 둘 다 `smoke_test.mp4`(Wan) / `smoke_test_ltx.mp4`(LTX)로 만들어 두었다. 나란히 보고 고르는 것을 추천한다.
+
+LTX-2.5 메모:
+- 템플릿 기본값은 Gemma 4 E2B로 프롬프트를 자동 확장(`TextGenerateLTX2Prompt`)한다. 비교를 위해 껐다(`251:250.value=false`).
+- 오디오는 같은 프롬프트의 `Audio:` 문장으로 지정했다. 추출본: `test_output/smoke/ltx25_rain_ambience.flac`. 음량이 작아서(-29.7 LUFS) 음악 아래 깔 앰비언스로 쓰기에 알맞다.
 
 ### 루프 이음새 (`scripts/loop_check.py`, 256px 회색조 평균 절대 차)
 
@@ -90,6 +98,7 @@ python scripts/compose.py --clip <rife_clip.mp4> --music <a.flac> <b.flac> --dur
 | `image_zimage_turbo_int8_api.json` | `image_z_image_turbo_int8` |
 | `video_wan22_flf2v_14b_4step_api.json` | `video_wan2_2_14B_flf2v` (LightX2V 4스텝 경로 사용) |
 | `video_wan22_ti2v_5b_api.json` | `video_wan2_2_5B_ti2v` (+ LoadImage) |
+| `video_ltx25_flf2v_int8_api.json` | `video_ltx2_5_flf2v` (서브그래프를 펼침, 오디오 포함) |
 | `post_rife_interpolate_api.json` | `utility_video_frame_interpolation` (RIFE v4.26) |
 | `post_realesrgan_x4_api.json` | `utility-gan_upscaler` |
 
