@@ -35,6 +35,9 @@ def main():
     ap.add_argument("--lufs", type=float, default=-14)
     ap.add_argument("--ffmpeg", default="ffmpeg")
     ap.add_argument("--unit-out", default=None, help="also keep the loop unit at this path")
+    ap.add_argument("--ambience", default=None, help="looped ambience audio mixed under the music (e.g. rain)")
+    ap.add_argument("--ambience-db", type=float, default=-12, help="ambience gain in dB before mixing")
+    ap.add_argument("--size", default=None, help="output WxH, scaled to cover then center-cropped (e.g. 1920x1080)")
     a = ap.parse_args()
 
     ff = pathlib.Path(a.ffmpeg)
@@ -44,15 +47,20 @@ def main():
 
     # 1) loop unit
     unit = pathlib.Path(a.unit_out) if a.unit_out else tmp / "unit.mp4"
+    fit = ""
+    if a.size:
+        w, h = a.size.lower().split("x")
+        fit = f",scale={w}:{h}:force_original_aspect_ratio=increase:flags=lanczos,crop={w}:{h}"
     if a.seam > 0:
         d = a.seam
         fc = (f"[0:v]trim={d}:{clip_len},setpts=PTS-STARTPTS[main];"
               f"[0:v]trim=0:{d},setpts=PTS-STARTPTS[head];"
-              f"[main][head]xfade=transition=fade:duration={d}:offset={clip_len - 2 * d:.4f},format=yuv420p[v]")
+              f"[main][head]xfade=transition=fade:duration={d}:offset={clip_len - 2 * d:.4f}{fit},format=yuv420p[v]")
         run([a.ffmpeg, "-v", "error", "-y", "-i", a.clip, "-filter_complex", fc, "-map", "[v]", "-an",
              "-c:v", "libx264", "-crf", "16", "-preset", "medium", str(unit)])
     else:
-        run([a.ffmpeg, "-v", "error", "-y", "-i", a.clip, "-an", "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", str(unit)])
+        vf = ["-vf", fit.lstrip(",")] if fit else []
+        run([a.ffmpeg, "-v", "error", "-y", "-i", a.clip, *vf, "-an", "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", str(unit)])
 
     # 2) music: equal slices per track so every crossfade lands inside the target duration
     n = len(a.music)
@@ -66,8 +74,14 @@ def main():
     for i in range(1, n):
         chains.append(f"[{cur}][m{i}]acrossfade=d={x}:c1=tri:c2=tri[x{i}]")
         cur = f"x{i}"
+    if a.ambience:
+        k = n + 1
+        inputs += ["-stream_loop", "-1", "-i", a.ambience]
+        chains.append(f"[{k}:a]aresample=48000,atrim=0:{a.duration},volume={a.ambience_db}dB[amb]")
+        chains.append(f"[{cur}][amb]amix=inputs=2:duration=first:normalize=0[mix]")
+        cur = "mix"
     chains.append(f"[{cur}]afade=t=in:d=2,afade=t=out:st={a.duration - 3}:d=3,"
-                  f"loudnorm=I={a.lufs}:TP=-1:LRA=11[a]")
+                  f"loudnorm=I={a.lufs}:TP=-1.5:LRA=11[a]")
     fc = ";".join(chains)
     run([a.ffmpeg, "-v", "error", "-y", "-stream_loop", "-1", "-i", str(unit), *inputs,
          "-filter_complex", fc, "-map", "0:v", "-map", "[a]", "-t", str(a.duration),

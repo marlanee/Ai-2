@@ -127,6 +127,20 @@ LTX-2.5 메모:
 python scripts/compose.py --clip <rife_clip.mp4> --music <a.flac> <b.flac> --duration 60 --seam 0.5 --xfade 8 --out test_output/smoke_test.mp4 --ffmpeg C:/AI/tools/ffmpeg/bin/ffmpeg.exe
 ```
 
+## 6. 최종 조합 1분 영상 (`test_output/final_1min_ltx1080_sa3.mp4`)
+
+- 영상: LTX-2.5 FLF2V 1080p 클립(1920×1088, 5.04초) → 이음새 0.5초 크로스페이드 → 1920×1080 중앙 크롭 → `-stream_loop` 반복
+- 음악: 블라인드 1·2위 Stable Audio 3.0 곡(seed 202, 303)을 각각 34초로 잘라 8초 크로스페이드
+- 앰비언스: LTX가 1080p 클립과 함께 만든 빗소리(+4dB)를 음악 밑에 반복해 깔기
+- 결과: 60.0초, H.264 1920×1080 24fps, AAC 48kHz 스테레오, 33.3MB(4.4Mbps), **-13.3 LUFS / True Peak -1.1 dBTP**. 합성 8.5초.
+- 루프 단위 이음새: **0.70** (프레임 간 평균 0.45, 최대 1.34). 처음으로 평소 변화 범위 안에 들어왔다 → 수치상 이음새가 보이지 않는 수준.
+
+```
+python scripts/compose.py --clip ltx25_flf_1080p.mp4 --music sa3_s202.flac sa3_s303.flac \
+  --ambience ltx25_1080p_rain.flac --ambience-db 4 --size 1920x1080 \
+  --duration 60 --seam 0.5 --xfade 8 --out test_output/final_1min_ltx1080_sa3.mp4
+```
+
 ## 사용한 워크플로 (API 형식, `workflows/`)
 
 | 파일 | 원본 템플릿 |
