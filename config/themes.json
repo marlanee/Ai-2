@@ -12,7 +12,25 @@
     ],
     "desc": "Two hours of mellow cyberpunk instrumentals and rain ambience for late-night coding.\\nDark synthwave, chillwave and downtempo beats over a rainy neon megacity. No vocals, no ads in between.",
     "tags": "cyberpunk lofi, synthwave, chillwave, coding music, night coding, focus music, rain ambience, neon city, study music, instrumental",
-    "ambience": "steady rain falling on a glass balcony window at night, distant futuristic city hum, soft far-away traffic, no music, no melody, no voices, ambient field recording"
+    "ambience": "steady rain falling on a glass balcony window at night, distant futuristic city hum, soft far-away traffic, no music, no melody, no voices, ambient field recording",
+    "styles": [
+      [
+        "Night Drive",
+        "Night Drive"
+      ],
+      [
+        "Chillwave Rain",
+        "Chillwave Rain"
+      ],
+      [
+        "Glass Bells",
+        "Glass Bells"
+      ],
+      [
+        "Late Night Code",
+        "Late Night Code"
+      ]
+    ]
   },
   "dystopia": {
     "title": "Ambient Lofi for Writing & Reading | After the Fall",
@@ -27,7 +45,25 @@
     ],
     "desc": "Melancholic but peaceful ambient lofi from a quiet city after the fall.\\nSoft ash, a warm lantern and an old radio. For deep focus, reading and late-night thinking.",
     "tags": "dystopian ambient, post apocalyptic lofi, dark ambient, deep focus, study music, reading music, cinematic lofi, instrumental",
-    "ambience": "gentle wind over a ruined city at dusk, faint crackle of an old radio, very distant low rumble, no music, no melody, no voices, ambient field recording"
+    "ambience": "gentle wind over a ruined city at dusk, faint crackle of an old radio, very distant low rumble, no music, no melody, no voices, ambient field recording",
+    "styles": [
+      [
+        "Lantern Piano",
+        "Lantern Piano"
+      ],
+      [
+        "Lonely Guitar",
+        "Lonely Guitar"
+      ],
+      [
+        "Dusk Strings",
+        "Dusk Strings"
+      ],
+      [
+        "Music Box",
+        "Music Box"
+      ]
+    ]
   },
   "seoul_ep2": {
     "title": "비 오는 80년대 서울, 다방 창가 | 공부·작업용 시티팝 로파이 2시간",

@@ -27,7 +27,7 @@ def dur(p):
 
 
 def style(p):
-    m = re.search(r"_p([a-z])_", p.name)
+    m = re.search(r"_p([a-z0-9])_", p.name)
     return m.group(1) if m else "x"
 
 
@@ -72,9 +72,9 @@ def order(tracks, lens, duration, lead, lead_free, seed):
     seq, total, last = [], 0.0, None
     styles = sorted(by)
     while total < duration + 30 and any(by.values()):
-        cands = [s for s in styles if by[s] and s != last and not (s == lead and total < lead_free)]
+        cands = [s for s in styles if by[s] and s != last and not (s in lead and total < lead_free)]
         if not cands:
-            cands = [s for s in styles if by[s] and not (s == lead and total < lead_free)] or [s for s in styles if by[s]]
+            cands = [s for s in styles if by[s] and not (s in lead and total < lead_free)] or [s for s in styles if by[s]]
         s = rnd.choice(cands)
         for _ in range(rnd.choice([2, 3])):
             if not by[s] or total >= duration + 30:
@@ -101,7 +101,17 @@ def main():
     ap.add_argument("--amb-rel", type=float, default=-18.0, help="ambience body relative to music body (LU)")
     ap.add_argument("--fast", action="store_true", help="skip per-transition evaluation (tri everywhere)")
     ap.add_argument("--listen-pack", action="store_true", help="write MP3 listening pack + index")
+    ap.add_argument("--theme", default=None, help="config/themes.json key: description + style names")
     a = ap.parse_args()
+    global DESC, SN, ST
+    DESC = ["비 내리는 80년대 서울 골목, 레코드 가게와 다방 간판 불빛 아래에서 듣는 시티팝 로파이.",
+            "공부·작업·휴식할 때 틀어 두세요. 🌧️☕"]
+    SN, ST = dict(STYLE_NAMES), dict(STYLE_TRACK)
+    if a.theme:
+        th = json.load(open(ROOT / "config" / "themes.json", encoding="utf-8"))[a.theme]
+        DESC = th.get("desc", "").split("\\n") or DESC
+        for k, (ko, en) in enumerate(th.get("styles", [])):
+            SN[str(k)] = ko; ST[str(k)] = en
     out = pathlib.Path(a.out); out.parent.mkdir(parents=True, exist_ok=True)
     tracks = [p for d in a.pools for p in sorted(pathlib.Path(d).glob("*.flac")) if p.name not in a.exclude]
     lens = {p: dur(p) for p in tracks}
@@ -141,7 +151,7 @@ def main():
          "xfade_qc": (tq[i - 1] if i else None)} for i in range(len(seq))]}
     (out.with_suffix(".edit.json")).write_text(json.dumps(table, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"{len(seq)} tracks, music {music_len:.0f}s, curves {curves.count('qsin')} qsin / {curves.count('tri')} tri, "
-          f"first lead-style at {next((ts(s) for s, t in zip(starts, seq) if style(t) == a.lead), 'none')}", flush=True)
+          f"first lead-style at {next((ts(s) for s, t in zip(starts, seq) if style(t) in a.lead), 'none')}", flush=True)
 
     # --- ambience level relative to the music body (tracks are prepped to body -16 LUFS short-term)
     amb_db = a.ambience_db
@@ -182,22 +192,21 @@ def main():
     step = a.duration / target
     chapters, nxt = [], 0.0
     for i, s in enumerate(starts):
-        name = STYLE_NAMES.get(style(seq[i]), "비 오는 밤")
+        name = SN.get(style(seq[i]), "비 오는 밤")
         if s >= nxt and (not chapters or chapters[-1][1] != name):
             chapters.append((s if chapters else 0.0, name))
             nxt = s + step * 0.9
     mm = any("mm3" in str(t) for t in seq)
     music = "Stable Audio 3.0 (Powered by Stability AI)" + (", MiniMax-Music3" if mm else "")
     lines = [f"# {a.title}", "", "## 설명", "",
-             "비 내리는 80년대 서울 골목, 레코드 가게와 다방 간판 불빛 아래에서 듣는 시티팝 로파이.",
-             "공부·작업·휴식할 때 틀어 두세요. 🌧️☕", "", "## 챕터"] + [f"{ts(s)} {n}" for s, n in chapters] + \
-            ["", "🎵 Tracklist"] + [f"{ts(s)} {STYLE_TRACK.get(style(t), 'Track')} {i + 1:02d}" for i, (s, t) in enumerate(zip(starts, seq))] + \
+             *DESC, "", "## 챕터"] + [f"{ts(s)} {n}" for s, n in chapters] + \
+            ["", "🎵 Tracklist"] + [f"{ts(s)} {ST.get(style(t), 'Track')} {i + 1:02d}" for i, (s, t) in enumerate(zip(starts, seq))] + \
             ["", "—", "이 영상의 음악·영상·그림은 AI 도구로 생성한 뒤 곡 선별·편성·전환·환경음 믹스를 직접 편집했습니다.",
              f"Music: {music} · Video: LTX-2.5 (Lightricks) · Image: Qwen-Image-2512, Qwen-Image-Edit-2511",
              "", "## 업로드 체크", "", "- Studio 'AI 사용(변경되거나 합성된 콘텐츠)' 표시: 예",
              "- Stability AI Community License(연매출 100만 달러 미만), LTX-2 Community License(1,000만 달러 미만)"] + \
             (["- MiniMax-Music3 Community License: 'MiniMax-Music3' 크레딧 표기(위 설명란)"] if mm else []) + \
-            ["", "## 자동 검수", "", f"- 곡 수 {len(seq)}, 첫 색소폰 곡 {next((ts(s) for s, t in zip(starts, seq) if style(t) == a.lead), '없음')}",
+            ["", "## 자동 검수", "", f"- 곡 수 {len(seq)}, 첫 색소폰 곡 {next((ts(s) for s, t in zip(starts, seq) if style(t) in a.lead), '없음')}",
              f"- 크로스페이드: qsin {curves.count('qsin')} / tri {curves.count('tri')} (겹침 내부 편차 기준 자동 선택)",
              f"- 최종 음량 {I1:.1f} LUFS / {tp1:.1f} dBTP (고정 게인 {g:+.1f} dB, 2-pass)",
              f"- 청취 권장 전환 {len(flags)}건: " + ", ".join(ts(s) for s, _, _ in flags[:25])]
