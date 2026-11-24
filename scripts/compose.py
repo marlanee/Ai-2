@@ -38,6 +38,9 @@ def main():
     ap.add_argument("--ambience", default=None, help="looped ambience audio mixed under the music (e.g. rain)")
     ap.add_argument("--ambience-db", type=float, default=-12, help="ambience gain in dB before mixing")
     ap.add_argument("--size", default=None, help="output WxH, scaled to cover then center-cropped (e.g. 1920x1080)")
+    ap.add_argument("--copy-video", action="store_true",
+                    help="repeat the encoded loop unit with stream copy (fast for 1h+ videos)")
+    ap.add_argument("--unit-crf", type=int, default=16)
     a = ap.parse_args()
 
     ff = pathlib.Path(a.ffmpeg)
@@ -57,10 +60,10 @@ def main():
               f"[0:v]trim=0:{d},setpts=PTS-STARTPTS[head];"
               f"[main][head]xfade=transition=fade:duration={d}:offset={clip_len - 2 * d:.4f}{fit},format=yuv420p[v]")
         run([a.ffmpeg, "-v", "error", "-y", "-i", a.clip, "-filter_complex", fc, "-map", "[v]", "-an",
-             "-c:v", "libx264", "-crf", "16", "-preset", "medium", str(unit)])
+             "-c:v", "libx264", "-crf", str(a.unit_crf), "-preset", "medium", str(unit)])
     else:
         vf = ["-vf", fit.lstrip(",")] if fit else []
-        run([a.ffmpeg, "-v", "error", "-y", "-i", a.clip, *vf, "-an", "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", str(unit)])
+        run([a.ffmpeg, "-v", "error", "-y", "-i", a.clip, *vf, "-an", "-c:v", "libx264", "-crf", str(a.unit_crf), "-pix_fmt", "yuv420p", str(unit)])
 
     # 2) music: equal slices per track so every crossfade lands inside the target duration
     n = len(a.music)
@@ -83,10 +86,20 @@ def main():
     chains.append(f"[{cur}]afade=t=in:d=2,afade=t=out:st={a.duration - 3}:d=3,"
                   f"loudnorm=I={a.lufs}:TP=-1.5:LRA=11[a]")
     fc = ";".join(chains)
-    run([a.ffmpeg, "-v", "error", "-y", "-stream_loop", "-1", "-i", str(unit), *inputs,
-         "-filter_complex", fc, "-map", "0:v", "-map", "[a]", "-t", str(a.duration),
-         "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p",
-         "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-movflags", "+faststart", a.out])
+    if a.copy_video:
+        # fast path for long videos: repeat the already-encoded loop unit with the concat demuxer (no re-encode)
+        unit_len = probe_duration(ffprobe, unit)
+        reps = int(a.duration / unit_len) + 2
+        lst = tmp / "concat.txt"
+        lst.write_text("".join(f"file '{unit.as_posix()}'\n" for _ in range(reps)), encoding="utf-8")
+        run([a.ffmpeg, "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lst), *inputs,
+             "-filter_complex", fc, "-map", "0:v", "-map", "[a]", "-t", str(a.duration),
+             "-c:v", "copy", "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-movflags", "+faststart", a.out])
+    else:
+        run([a.ffmpeg, "-v", "error", "-y", "-stream_loop", "-1", "-i", str(unit), *inputs,
+             "-filter_complex", fc, "-map", "0:v", "-map", "[a]", "-t", str(a.duration),
+             "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p",
+             "-c:a", "aac", "-b:a", "320k", "-ar", "48000", "-movflags", "+faststart", a.out])
     print(f"wrote {a.out}  (clip {clip_len:.2f}s -> unit {clip_len - a.seam:.2f}s, music slices {seg:.1f}s, xfade {x}s)")
 
 

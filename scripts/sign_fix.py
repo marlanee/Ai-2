@@ -62,7 +62,7 @@ def sample_color(rect, mode):
     return tuple(int(c) for c in rect[sel].mean(0))
 
 
-def draw_text(size, text, font_path, vertical, fill, color, glow, blur, opacity):
+def draw_text(size, text, font_path, vertical, fill, color, glow, blur, opacity, stroke=0):
     w, h = size
     layer = Image.new("RGBA", size, (0, 0, 0, 0))
     chars = list(text) if vertical else [text]
@@ -87,11 +87,12 @@ def draw_text(size, text, font_path, vertical, fill, color, glow, blur, opacity)
         y = (h - total) / 2
         for c, b in zip(chars, boxes):
             cw, ch = b[2] - b[0], b[3] - b[1]
-            d.text(((w - cw) / 2 - b[0], y - b[1]), c, font=f, fill=color + (a,))
+            d.text(((w - cw) / 2 - b[0], y - b[1]), c, font=f, fill=color + (a,), stroke_width=stroke, stroke_fill=color + (a,))
             y += ch * 1.12
     else:
         b = f.getbbox(text)
-        d.text(((w - (b[2] - b[0])) / 2 - b[0], (h - (b[3] - b[1])) / 2 - b[1]), text, font=f, fill=color + (a,))
+        d.text(((w - (b[2] - b[0])) / 2 - b[0], (h - (b[3] - b[1])) / 2 - b[1]), text, font=f, fill=color + (a,),
+               stroke_width=stroke, stroke_fill=color + (a,))
     if blur:
         layer = layer.filter(ImageFilter.GaussianBlur(blur))
     if glow:
@@ -135,7 +136,7 @@ def main():
         if sg.get("text"):
             layer = draw_text((rw, rh), sg["text"], fonts[sg.get("font", "default")], sg.get("vertical", False),
                               sg.get("fill", 0.8), tuple(color), sg.get("glow", 0), sg.get("blur", 0.6),
-                              sg.get("opacity", 1.0))
+                              sg.get("opacity", 1.0), sg.get("stroke", 0))
             flat = Image.alpha_composite(flat, layer)
         # erase-only signs skip the detail pass: faint old glyphs fall under glyph_thresh and would come back
         k = sg.get("detail", 1.0 if sg.get("text") else 0.0)
