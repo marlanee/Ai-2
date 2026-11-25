@@ -28,8 +28,12 @@ x0 = (b.width - 2560) // 2
 b = b.crop((x0, 0, x0 + 2560, 1440))
 W, H = b.size
 SX0, SY0, SX1, SY1 = (W - 1546) // 2, (H - 423) // 2, (W + 1546) // 2, (H + 423) // 2   # safe area
-title, sub = "서울 골목 라디오", "Seoul Alley Radio  |  비 오는 밤의 시티팝 로파이"
+EN = "--ko" not in sys.argv
+title, sub = (("Night Alley Records", "Rainy City Pop & Lofi for Late Nights") if EN else
+              ("서울 골목 라디오", "Seoul Alley Radio  |  비 오는 밤의 시티팝 로파이"))
 f1, f2 = ImageFont.truetype(F1, 200), ImageFont.truetype(F2, 72)
+while f1.getbbox(title)[2] - f1.getbbox(title)[0] > 1546 - 140:   # fit the mobile safe area with margin
+    f1 = ImageFont.truetype(F1, f1.size - 4)
 glyph_ok(f1, title); glyph_ok(f2, sub)
 b1, b2 = f1.getbbox(title), f2.getbbox(sub)
 tw1, th1, tw2, th2 = b1[2] - b1[0], b1[3] - b1[1], b2[2] - b2[0], b2[3] - b2[1]
@@ -45,8 +49,9 @@ d.text(((W - tw2) // 2 - b2[0], ty + th1 + gap - b2[1]), sub, font=f2, fill="#bf
 glow = layer.filter(ImageFilter.GaussianBlur(14))
 out = Image.alpha_composite(b.convert("RGBA"), Image.blend(Image.new("RGBA", (W, H), (0, 0, 0, 0)), glow, 0.45))
 out = Image.alpha_composite(out, layer).convert("RGB")
-out.save(OUT + "banner_2560x1440.jpg", quality=92)
+sfx = "_en" if EN else ""
+out.save(OUT + f"banner{sfx}_2560x1440.jpg", quality=92)
 # previews: TV (full), desktop (2560x423 band), mobile (1546x423 safe area)
-out.crop((0, SY0, W, SY1)).resize((1280, 212), Image.LANCZOS).save(OUT + "preview_desktop.png")
-out.crop((SX0, SY0, SX1, SY1)).resize((773, 212), Image.LANCZOS).save(OUT + "preview_mobile.png")
+out.crop((0, SY0, W, SY1)).resize((1280, 212), Image.LANCZOS).save(OUT + f"preview{sfx}_desktop.png")
+out.crop((SX0, SY0, SX1, SY1)).resize((773, 212), Image.LANCZOS).save(OUT + f"preview{sfx}_mobile.png")
 print("ok")

@@ -1,0 +1,1 @@
+﻿while (-not ((Get-Content 'C:\Users\SSAFY\AppData\Local\Temp\claude\dc44695927ee000c\65ffb0bc-b412-49ee-a61c-ae05fb5eeeff\tasks\bx8z66p5i.output' -Raw) -match 'THEMES DONE')) { Start-Sleep 20 }; cd C:\Users\SSAFY\Desktop\Ai-2; foreach ($t in 'cyberpunk','dystopia') { foreach ($s in 'ambience','variants','demo') { python scripts\theme_pipeline.py $t --stage $s } }; 'THEMES2 DONE'
