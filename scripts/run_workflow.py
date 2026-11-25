@@ -47,9 +47,10 @@ def free_memory():
         pass
 
 
-def run(api, label, timeout=7200):
-    free_memory()
-    time.sleep(2)
+def run(api, label, timeout=7200, keep=False):
+    if not keep:   # --keep-models: back-to-back jobs of the same workflow reuse the loaded models
+        free_memory()
+        time.sleep(2)
     base = vram_used_mb()
     peak = [base]
     stop = threading.Event()
@@ -98,6 +99,7 @@ def main():
     ap.add_argument("--log", default="test_output/runs.jsonl")
     ap.add_argument("--save-api", default=None)
     ap.add_argument("--timeout", type=int, default=7200)
+    ap.add_argument("--keep-models", action="store_true")
     a = ap.parse_args()
     api = json.loads(pathlib.Path(a.workflow).read_text(encoding="utf-8"))
     for v in api.values():
@@ -105,7 +107,7 @@ def main():
     apply_sets(api, a.set)
     if a.save_api:
         pathlib.Path(a.save_api).write_text(json.dumps(api, indent=2, ensure_ascii=False), encoding="utf-8")
-    res = run(api, a.label or pathlib.Path(a.workflow).stem, a.timeout)
+    res = run(api, a.label or pathlib.Path(a.workflow).stem, a.timeout, a.keep_models)
     pathlib.Path(a.log).parent.mkdir(parents=True, exist_ok=True)
     with open(a.log, "a", encoding="utf-8") as f:
         f.write(json.dumps(res, ensure_ascii=False) + "\n")

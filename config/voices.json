@@ -1,0 +1,8 @@
+﻿{
+  "narrator_c": {
+    "ref_audio": "test_output/story/voice_ref/narrator_c_s111.wav",
+    "ref_text_file": "test_output/story/voice_ref/ref_text.txt",
+    "model": "Qwen3-TTS-12Hz-0.6B-Base",
+    "design": "50대 한국 여성 라디오 낭독자. 부드럽고 포근한 중저음. 감정을 절제하면서 또박또박, 조금 느린 속도로 읽는다. (VoiceDesign 1.7B, seed 111)"
+  }
+}
