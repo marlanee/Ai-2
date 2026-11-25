@@ -92,7 +92,8 @@ def main():
 
     if st in ("music", "all"):
         pool = out / "music"; pool.mkdir(exist_ok=True)
-        for i in range(a.tracks):
+        start = len(list(pool.glob("*.flac")))   # never reuse seeds: continue after existing tracks
+        for i in range(start, start + a.tracks):
             p = th["music"][i % len(th["music"])]
             seed = 3000 + i
             outs, sec = run_wf("music_stableaudio3_medium_headroom_api.json", {"52:31.value": p, "52:35.value": "false",
