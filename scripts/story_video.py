@@ -45,28 +45,40 @@ def wrap(text, f, maxw):
 
 
 def sub_chunks(text, maxw=1400):
-    """One spoken line -> on-screen subtitle chunks that each fit on one line when possible.
-    Splits after , . ? ! … and merges pieces greedily; returns [(chunk, is_dialogue)]."""
+    """One spoken line -> on-screen subtitle chunks; returns [(chunk, is_dialogue)].
+    Rules (listener 11-26: "the next sentence tags along"): narration and quoted dialogue are never in one chunk, and
+    every sentence (. ? ! …) is its own chunk. Only a sentence too wide for one line is split further: first at commas
+    (merged greedily up to the width), then at the most balanced space."""
     f = font(62)
-    dlg = text.startswith(('"', "“"))
-    parts = [p for p in re.split(r"(?<=[,.?!…])\s+", text.strip('"“”')) if p]
-    out, cur = [], ""
-    for p in parts:
-        t = (cur + " " + p).strip()
-        if f.getlength(t) <= maxw or not cur:
-            cur = t
-        else:
-            out.append(cur); cur = p
-    out.append(cur)
+    segs, pos = [], 0                        # narration / "dialogue" segments in order
+    for m in re.finditer(r'["“]([^"”]*)["”]?', text):
+        if text[pos:m.start()].strip():
+            segs.append((text[pos:m.start()].strip(), False))
+        if m.group(1).strip():
+            segs.append((m.group(1).strip(), True))
+        pos = m.end()
+    if text[pos:].strip():
+        segs.append((text[pos:].strip(), False))
     res = []
-    for c in out:   # a clause still too wide for one line -> split at the most balanced space
-        w = c.split(" ")
-        if f.getlength(c) > maxw and len(w) > 1:
-            k = min(range(1, len(w)), key=lambda i: abs(f.getlength(" ".join(w[:i])) - f.getlength(" ".join(w[i:]))))
-            res += [" ".join(w[:k]), " ".join(w[k:])]
-        else:
-            res.append(c)
-    return [(c, dlg) for c in res]
+    for seg, dlg in segs:
+        for sent in [s for s in re.split(r"(?<=[.?!…])\s+", seg) if s]:
+            if f.getlength(sent) <= maxw:
+                res.append((sent, dlg)); continue
+            cur = ""
+            for p in [p for p in re.split(r"(?<=,)\s+", sent) if p]:
+                t = (cur + " " + p).strip()
+                if f.getlength(t) <= maxw or not cur:
+                    cur = t
+                else:
+                    res.append((cur, dlg)); cur = p
+            for c in [cur]:
+                w = c.split(" ")
+                if f.getlength(c) > maxw and len(w) > 1:
+                    k = min(range(1, len(w)), key=lambda i: abs(f.getlength(" ".join(w[:i])) - f.getlength(" ".join(w[i:]))))
+                    res += [(" ".join(w[:k]), dlg), (" ".join(w[k:]), dlg)]
+                else:
+                    res.append((c, dlg))
+    return res
 
 
 def subtitle_layer(text, dialogue=None):
@@ -245,7 +257,14 @@ def main():
         i = min(int(max(0, lt) / seg), len(cl) - 1)
         fr = clip_frames(cl[i]); L = len(fr); t = max(0, lt) - i * seg
         idx = int(t / seg * L) if seg <= 2 * L / FPS else int(t * FPS / 2)
-        return fr[min(idx, L - 1)].resize((W, H), Image.BILINEAR)
+        if idx < L - 1:
+            return fr[idx].resize((W, H), Image.BILINEAR)
+        # clip used up before its slot ends (it is already at 0.5x): never freeze — keep the last frame moving with a slow
+        # push-in (1.5 %/s, max 15 %). 11-26 ep5c had 242 s of 432 s frozen on last frames before this.
+        held = t - (L - 1) * 2 / FPS
+        z = 1 + min(0.15, 0.015 * max(0.0, held))
+        w0, h0 = 960 / z, 540 / z
+        return fr[L - 1].resize((W, H), Image.BICUBIC, box=((960 - w0) / 2, (540 - h0) / 2, (960 + w0) / 2, (540 + h0) / 2))
 
     nf = int(total * FPS)
     for fi in range(nf):

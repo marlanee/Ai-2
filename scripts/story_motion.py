@@ -8,6 +8,11 @@ else the scene image description + 'subtle natural motion'. Output: clips/sNN_K.
 
 Engines: LTX-2.5 (default). scene "motion_engine": "k6" -> Kandinsky 6 Lite distill (864x480, ~4 min/clip, video only;
   A/B 2026-11-26: best on animal/nature action, but adds people or warps props in crowded scenes -> use only there).
+Continuation clips (no frozen frames; 11-26 ep5c had 56 % of its runtime frozen on last frames): scene "beats":
+  [{"motion": "what happens during the clip", "end": "edit instruction for the end pose"}, ...]. Each beat = one more clip
+  after the shot clips, LTX first+last frame: start = last frame of the previous clip (seamless), end = Qwen-Edit of the
+  scene's main still (scenes/sNN.png) with "end" (same faces/composition, no GPT quota). Keyframes in scenes/chain/.
+  Rule of thumb: clips per scene = ceil(scene seconds / 10) (story_video plays clips at about 0.5x).
 Dark-tail trim: LTX often fades to dark in the last 1-2 s. After every new clip the per-frame brightness is measured and the
   clip is cut where it drops below 85% of its first-half median (only if >= 2 s remain; full clip kept in clips/_full/).
   `--trim-only` applies the same check to existing clips.
@@ -20,6 +25,9 @@ FF = r"C:\AI\tools\ffmpeg\bin\ffmpeg.exe"
 WF = ROOT / "workflows" / "video_ltx25_flf2v_int8_api.json"
 TAIL = (" Keep the exact same characters, faces, clothes and 2D illustration art style; smooth natural motion; no new people; "
         "no text. Audio: quiet ambience, no music, no voices.")
+LTX_NEG_ADD = ", deformed hands, extra fingers, fused fingers, missing fingers, morphing objects, melting, warping props"
+EDIT_KEEP = (" Keep exactly the same characters, faces, ages, hair, clothes, setting, lighting, camera angle and 2D illustration "
+             "style; change only the pose/action described. No new people, no text.")
 K6_NEG = ("Static, worst quality, low quality, ugly, deformed, melting, morphing objects, morphing faces, extra people, children "
           "appearing, new characters, text, watermark, walking backwards")
 
@@ -61,6 +69,8 @@ def main():
     ap.add_argument("--sec", type=int, default=5); ap.add_argument("--max", type=int, default=0)
     ap.add_argument("--shots", type=int, default=9, help="only the first N shots per scene (pass 1 = every scene moves)")
     ap.add_argument("--trim-only", action="store_true", help="only cut dark tails of existing clips")
+    ap.add_argument("--keyframes-only", action="store_true",
+                    help="only make the Qwen-Edit end keyframes for scene beats (run first: avoids Qwen<->LTX reloads per clip)")
     a = ap.parse_args()
     d = pathlib.Path(a.story_dir).resolve(); (d / "clips").mkdir(exist_ok=True)
     s = json.load(open(d / "story.json", encoding="utf-8-sig"))
@@ -70,6 +80,21 @@ def main():
             if not only or int(c.stem[1:3]) in only:
                 k = trim_dark_tail(c)
                 if k: print(f"trim {c.name} -> {k} frames", flush=True)
+        return
+    if a.keyframes_only:
+        for sc in s["scenes"]:
+            if (only and sc["id"] not in only) or not sc.get("beats"):
+                continue
+            shots = [d / "scenes" / f"s{sc['id']:02d}.png"] + sorted((d / "scenes").glob(f"s{sc['id']:02d}_[b-z].png"))
+            (d / "scenes" / "chain").mkdir(parents=True, exist_ok=True)
+            for j, beat in enumerate(sc["beats"]):
+                K = len(shots) + j + 1
+                en = d / "scenes" / "chain" / f"s{sc['id']:02d}_{K}_end.png"
+                if en.exists() or (d / "clips" / f"s{sc['id']:02d}_{K}.mp4").exists():
+                    continue
+                subprocess.run([sys.executable, str(ROOT / "scripts" / "qwen_edit.py"), str(shots[-1]), str(en),
+                                "--prompt", beat["end"] + EDIT_KEEP, "--seed", str(sc["id"] * 10 + K)], check=True, capture_output=True)
+                print("keyframe", en.name, flush=True)
         return
     done = 0; t0 = time.time()
     for sc in s["scenes"]:
@@ -96,6 +121,7 @@ def main():
                                 "--set", f"31.image={name}", "--set", f"39.image={name}",
                                 "--set", "251:204.strength=0.0", "--set", "251:206.strength=1.0",
                                 "--set", f"251:252.value={prompt}", "--set", "251:250.value=false",
+                                "--set", f"251:217.text=blurry, out of focus, overexposed, underexposed, low contrast{LTX_NEG_ADD}",
                                 "--set", f"251:215.value={a.w}", "--set", f"251:216.value={a.h}",
                                 "--set", f"251:198.value={a.sec}", "--set", "251:205.value=24",
                                 "--set", f"251:196.noise_seed={sc['id'] * 10 + k}",
@@ -115,6 +141,46 @@ def main():
                   + (f" dark tail cut at frame {cut}" if cut else ""), flush=True)
             if a.max and done >= a.max:
                 return
+        # continuation clips (scene "beats"), chained frame-to-frame after the shot clips
+        chain = d / "scenes" / "chain"
+        for j, beat in enumerate(sc.get("beats", [])):
+            K = len(shots) + j + 1
+            out = d / "clips" / f"s{sc['id']:02d}_{K}.mp4"
+            prev = d / "clips" / f"s{sc['id']:02d}_{K - 1}.mp4"
+            if out.exists():
+                continue
+            if not prev.exists():
+                print(f"skip s{sc['id']}_{K}: previous clip missing", flush=True); break
+            chain.mkdir(parents=True, exist_ok=True)
+            st, en = chain / f"s{sc['id']:02d}_{K}_start.png", chain / f"s{sc['id']:02d}_{K}_end.png"
+            subprocess.run([FF, "-v", "error", "-y", "-sseof", "-0.2", "-i", str(prev), "-frames:v", "1", "-update", "1", str(st)], check=True)
+            if not en.exists():
+                subprocess.run([sys.executable, str(ROOT / "scripts" / "qwen_edit.py"), str(shots[-1]), str(en),   # the shot it continues
+                                "--prompt", beat["end"] + EDIT_KEEP, "--seed", str(sc["id"] * 10 + K)], check=True,
+                               capture_output=True)
+            ns, ne = f"mo_{d.name}_{sc['id']:02d}_{K}_s.png", f"mo_{d.name}_{sc['id']:02d}_{K}_e.png"
+            shutil.copy(st, COMFY / "input" / ns); shutil.copy(en, COMFY / "input" / ne)
+            r = subprocess.run([sys.executable, str(ROOT / "scripts" / "run_workflow.py"), str(WF),
+                                "--set", f"31.image={ns}", "--set", f"39.image={ne}",
+                                "--set", "251:204.strength=0.8", "--set", "251:206.strength=1.0",
+                                "--set", f"251:252.value={beat['motion'] + TAIL}", "--set", "251:250.value=false",
+                                "--set", f"251:217.text=blurry, out of focus, overexposed, underexposed, low contrast{LTX_NEG_ADD}",
+                                "--set", f"251:215.value={a.w}", "--set", f"251:216.value={a.h}",
+                                "--set", f"251:198.value={a.sec}", "--set", "251:205.value=24",
+                                "--set", f"251:196.noise_seed={sc['id'] * 10 + K}",
+                                "--set", f"68.filename_prefix=story/{d.name}/clip_s{sc['id']:02d}_{K}",
+                                "--label", f"{d.name}_clip_{sc['id']}_{K}", "--timeout", "1800", "--keep-models"],
+                               capture_output=True, text=True, encoding="utf-8", errors="replace")
+            try:
+                res = json.loads(r.stdout[r.stdout.index("{"):])
+            except ValueError:
+                res = {"status": "error", "error": r.stderr[-300:]}
+            if res.get("status") != "success":
+                print(f"FAIL s{sc['id']}_{K}: {res.get('error')}", flush=True); break
+            shutil.copy(COMFY / "output" / next(o for o in res["outputs"] if o.endswith(".mp4")), out)
+            done += 1
+            cut = trim_dark_tail(out)
+            print(f"chain s{sc['id']:02d}_{K} {res.get('seconds')}s" + (f" dark tail cut at frame {cut}" if cut else ""), flush=True)
 
 
 if __name__ == "__main__":
