@@ -10,6 +10,7 @@ Stages (resumable; each skips work whose output already exists):
   stylize        other local shots re-drawn toward the GPT look with story.json "style_anchor" (story_images --stage stylize)
   qa             GPT scene QA; text-only problems -> qwen_edit erase, other problems -> regenerate with a new seed
   lora_collect   GPT originals approved with `story_gptimg.py approve` -> style-LoRA dataset C:/AI/train/data/style_gpt
+  foley          (after motion) event sounds per clip, annotate.json "foley" prompts -> sfx/foley/ (story_foley.py)
   tts            narration with the fixed voice (TTS venv)
   bgm            3 x 120 s Stable Audio tracks unless bgm/*.flac exists (story.json "bgm" = list of prompts)
   video          story_video.py -> <name>.mp4 + .srt + timeline.json
@@ -25,7 +26,7 @@ VPY = r"C:\AI\tts\venv\Scripts\python.exe"
 FF = r"C:\AI\tools\ffmpeg\bin\ffmpeg.exe"
 COMFY = pathlib.Path(r"C:\AI\ComfyUI\ComfyUI")
 STAGES = ["script_review", "chars", "scenes", "gptimg", "stylize", "qa", "lora_collect", "voices", "tts", "bgm", "sfx",
-          "motion", "video", "thumb", "preview", "review"]
+          "motion", "foley", "video", "thumb", "preview", "review"]
 ERASE = ("Remove every written character, letter and calligraphy from all signboards, banners, papers and documents so "
          "they are completely blank (plain wood, plain cloth, blank paper). Keep everything else exactly identical: same "
          "people, faces, composition, colors and art style.")
@@ -138,6 +139,9 @@ def main():
             for passes in ("1", "9"):   # pass 1: first shot of every scene; pass 2: the extra shots
                 out, t = sh([ROOT / "scripts/story_motion.py", d, "--shots", passes])
                 note(f"motion pass shots<={passes} {t}s " + (out.strip().splitlines()[-1] if out.strip() else ""))
+        elif st == "foley":    # event sounds per motion clip from annotate.json "foley" prompts (story_foley.py)
+            if (d / "annotate.json").exists() and any(x.get("foley") for x in json.load(open(d / "annotate.json", encoding="utf-8"))["scenes"]):
+                out, t = sh([ROOT / "scripts/story_foley.py", d]); note(f"foley {t}s " + (out.strip().splitlines()[-1] if out.strip() else ""))
         elif st == "video":
             out, t = sh([ROOT / "scripts/story_video.py", d, "--bgm", *sorted((d / "bgm").glob("*.flac"))], py=VPY)
             note(f"video {t}s " + " ".join(l for l in out.splitlines() if "wrote" in l))

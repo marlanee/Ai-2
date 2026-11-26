@@ -269,7 +269,9 @@ def main():
 
     # ---- scene ambience/SFX bed: sfx/sNN.(flac|wav) looped over the scene span, 1 s fades -> sfx.wav (mixed below)
     sfx_files = {o["scene"]: next(iter(sorted((d / "sfx").glob(f"s{o['scene']:02d}.*"))), None) for o in order} if (d / "sfx").exists() else {}
-    has_sfx = any(sfx_files.values())
+    foley_dir = d / "sfx" / "foley"
+    has_foley = foley_dir.exists() and any(foley_dir.glob("s*_*.wav"))
+    has_sfx = any(sfx_files.values()) or has_foley
     if has_sfx:
         SR2 = 44100
         bed = np.zeros((int(total * SR2) + SR2, 2), np.float32)
@@ -288,6 +290,36 @@ def main():
             f = min(SR2, n // 4)
             env = np.ones(n, np.float32); env[:f] = np.linspace(0, 1, f); env[-f:] = np.linspace(1, 0, f)
             bed[a0:a1] += seg / max(1e-6, np.abs(seg).max()) * 0.7 * env[:, None]
+        # event sounds (story_foley.py): sfx/foley/sNN_K.wav belongs to clip K of the scene. The picture plays that clip
+        # slowed to fill its slot (same rule as scene_frame), so the sound is time-stretched by the same rate (pitch kept)
+        # and starts with the clip. Peak 0.5 = about 3 dB under the ambience bed.
+        if has_foley:
+            import librosa
+            placed = []
+            for o in order:
+                cl = clips.get(o["scene"]) or []
+                if not cl:
+                    continue
+                span = o["end"] - o["start"] + XF; segd = span / len(cl)
+                for i, c in enumerate(cl):
+                    fp = foley_dir / f"{c.stem}.wav"
+                    if not fp.exists():
+                        continue
+                    L = len(clip_frames(c))
+                    rate = L / (segd * FPS) if segd <= 2 * L / FPS else 0.5     # playback speed of the picture
+                    y, r0 = librosa.load(fp, sr=SR2, mono=True)
+                    y = y[:int(L / FPS * SR2)]                                   # only the frames that are shown
+                    if abs(rate - 1) > 0.02:
+                        y = librosa.effects.time_stretch(y, rate=rate)
+                    y = y / max(1e-6, np.abs(y).max()) * 0.5
+                    f = min(len(y) // 6, int(0.15 * SR2))
+                    if f:
+                        y[:f] *= np.linspace(0, 1, f); y[-f:] *= np.linspace(1, 0, f)
+                    a0 = int((o["start"] + i * segd) * SR2)
+                    n = min(len(y), len(bed) - a0)
+                    bed[a0:a0 + n] += y[:n, None]
+                    placed.append(f"{c.stem}@{o['start'] + i * segd:.1f}s x{rate:.2f}")
+            print("foley", placed)
         sf.write(d / "sfx.wav", bed, SR2)
 
     # ---- audio: narration + BGM (looped, ducked under the voice) + SFX bed, master to about -14 LUFS
