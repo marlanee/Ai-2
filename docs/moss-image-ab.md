@@ -149,7 +149,14 @@ GPT 채점: 자동 승인 단계에서 막힌 뒤 **사용자 결정으로 생�
 
 - Claude 판단과 다른 이유: Foley 원본이 작아서(피크 -35 dBFS) 수치로는 "거의 무음"으로 봤지만, 실제로는 장면에 맞는 구체적 소리(발소리·쇳소리·범 숨소리)가 있었음. 현행 SA3 바닥 소리는 분위기 배경일 뿐 사건 소리가 없음. 블라인드용 음량 맞춤(-20 LUFS)으로 작은 소리를 키우면서 고음이 날카로워져 A1이 쨍하게 들린 것으로 보임.
 - **추천 변경: 사건 소리는 Foley, 분위기 바닥은 SA3 유지, 휘파람은 합성 cue(-6 dB).** Foley 결과에는 저역 통과(약 5 kHz) + 저음 보강 + 음량 정규화 후처리.
-- LTX-2.3 dev 본체로 재시험(공식 설정 CFG 6, 30 steps) 진행 중 — 결과를 아래에 추가.
+### LTX-2.3 dev 재시험 (공식 설정)
+- 받은 파일(사용자 승인, 공식 bf16 46 GB + 게이트된 Gemma 대신 같은 모델의 ComfyUI용 재포장본, 약 35 GB, 게이트 없음):
+  Kijai `ltx-2.3-22b-dev_transformer_only_int8_convrot` 21.5 GB, `LTX23_video_vae_bf16` 1.45 GB, `LTX23_audio_vae_bf16` 0.37 GB,
+  `ltx-2.3_text_projection_bf16` 2.31 GB, Comfy-Org `gemma_3_12B_it_fp4_mixed` 9.45 GB. 라이선스: LTX-2 Community License(연매출 1천만 달러 미만 무료 상업 이용).
+- 설정: 오디오 CFG 6, LTXVScheduler 30 steps, 960×544로 키워서 인코딩, LoRA 1.0. STG(커스텀 노드 전용)는 못 씀. `scripts/foley_ab.py run23`.
+- 시간: **클립당 237~313초**(2.5는 약 40초), 최대 VRAM 15.8 GB.
+- 수치: 덫·범은 2.5보다 작고 약함, 발소리·초롱은 비슷하게 작음. 휘파람은 0.8초 소리 → 0.9초 쉼 → 2.6초 긴 소리로 **패턴 비슷한 것이 처음 나옴**(정확한 "짧게 두 번"은 아님).
+- 2차 블라인드: `C_foley/blind2/C1~C8.mp4` + `answer.txt`(2.5 vs 2.3, 같은 후처리). 청취 결과로 결정.
 
 ## D. BGM: ACE-Step 1.5 XL SFT / turbo / Stable Audio 3.0
 결과: `test_output/story/model_ab_2611/D_bgm/` (`<분위기>_<모델>.flac`, `qc.md`, 블라인드 `blind/B1~B9.mp3` + `answer.txt`, 모두 -16 LUFS로 맞춤)
