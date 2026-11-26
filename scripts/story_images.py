@@ -6,6 +6,12 @@ chars : Qwen-Image-2512 portrait per character -> <dir>/chars/<name>.png
 scenes: scenes with characters -> Qwen-Image-Edit-2511 with 1-2 character refs (image1/image2) on an empty
         1664x928 latent, so faces/clothes stay consistent; scenes without characters -> Qwen-Image-2512.
         -> <dir>/scenes/sNN.png (existing files are skipped; delete to regenerate)
+        scene "engine": "moss_layout" + "boxes" (1664x928 pixels, background first):
+          [{"x":0,"y":0,"w":1664,"h":928,"desc":"snowy ravine at night"}, {"x":380,"y":80,"w":520,"h":840,"char":"chilbok",
+            "desc":"holding a lantern high"}, ...] -> MOSS-Image layout draft (models/test 2026-11-26: best for multi-person
+          blocking, no duplicates). MOSS has no image input, so a "char" box gets the story["characters"] description;
+          run --stage stylize afterwards to pull the look toward the GPT anchor. Extra shots: "shot_boxes": [boxes_b, boxes_c].
+stylize: see below.
 """
 import argparse, copy, json, pathlib, shutil, subprocess, sys
 
@@ -62,6 +68,35 @@ STYLIZE = ("Redraw image 1 in exactly the art style of image 3: the same bold ta
            "shadow step, palette and simplified painterly background. Keep image 1's composition, camera, poses, blocking, "
            "setting, season and props exactly. {who}Do not copy any person or object from image 3; image 3 is a style "
            "reference only. No text, letters or logos.")
+
+
+# prompt words both Qwen and MOSS misread (A/B 2026-11-26: "tiger trap" drew a tiger's head inside the trap)
+PROP_FIX = {"tiger trap": "iron leg-hold trap with a pressure plate (no animal inside)",
+            "범 덫": "iron leg-hold trap with a pressure plate (no animal inside)"}
+
+
+def fix_props(text):
+    for k, v in PROP_FIX.items():
+        text = text.replace(k, v)
+    return text
+
+
+def moss_layout(s, boxes, caption, seed, prefix, label):
+    """MOSS-Image SFT layout render (workflows/image_moss_layout_api.json). Returns (output path, seconds)."""
+    def cdesc(c):
+        d = s["characters"].get(c, "")
+        return d if isinstance(d, str) else s["characters"].get(d.get("from", ""), "")
+    state, chars = [], []
+    for i, b in enumerate(boxes, 1):
+        desc = fix_props(b.get("desc", ""))
+        if b.get("char"):
+            desc = f"{cdesc(b['char'])} {desc}".strip(); chars.append(str(i))
+        state.append({"x": b["x"], "y": b["y"], "width": b["w"], "height": b["h"],
+                      "metadata": {"type": "text" if b.get("text") else "obj", "text": b.get("text", ""), "desc": desc, "palette": []}})
+    return run(WF / "image_moss_layout_api.json",
+               {"25.editor_state": json.dumps({"__value__": state}, ensure_ascii=False),   # a bare list would be read as a link
+                "27.prompt": fix_props(caption), "27.character_boxes": ", ".join(chars),
+                "7.seed": seed, "9.filename_prefix": prefix}, label)
 
 
 def run(wf, sets, label):
@@ -121,8 +156,13 @@ def main():
 
         def render(desc, chars, seed, stem):
             sid = int(stem[1:3])
-            cont = conts.get(next((sc.get("cont") for sc in s["scenes"] if sc["id"] == sid), None) or "", "")
-            desc = f"{desc}. Continuity: {cont}" if cont else desc
+            scn = next(sc for sc in s["scenes"] if sc["id"] == sid)
+            cont = conts.get(scn.get("cont") or "", "")
+            desc = fix_props(f"{desc}. Continuity: {cont}" if cont else desc)
+            if scn.get("engine") == "moss_layout":
+                boxes = scn.get("boxes") if "_" not in stem else (scn.get("shot_boxes") or [None, None])["bc".index(stem[-1])]
+                if boxes:
+                    return moss_layout(s, boxes, f"{desc}. {s['style']}", seed, f"story/{tag}/moss_{stem}", f"{tag}_moss_{stem}")
             if not chars:
                 return t2i(f"{desc}. {s['style']}", 1664, 928, seed, f"story/{tag}/{stem}", f"{tag}_{stem}")
             who = " and ".join(f"the {'woman' if female(c) else 'man'} in image {i + 1}" for i, c in enumerate(chars))
