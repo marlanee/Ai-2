@@ -121,7 +121,7 @@ def whistle(kind, sr, far=False, seed=0):
         for dl, g in ((0.11, 0.45), (0.23, 0.3), (0.41, 0.18), (0.62, 0.1)):      # ravine echo
             i = int(dl * sr); out[i:i + n] += w * g
         w = out * 0.35
-    return w * 0.5
+    return w * 0.25   # was 0.5: listener (11-26) found the whistle close to right but too loud -> -6 dB
 
 
 def cue_track(seq, sr, far_default=False, seed=0):

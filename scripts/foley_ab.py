@@ -65,6 +65,48 @@ def wf(video, prompt, seed, prefix, audio_cfg):
     }
 
 
+def wf23(video, prompt, seed, prefix, audio_cfg=6.0, steps=30):
+    """Official-guide settings on the LTX-2.3 *dev* model (Kijai int8 transformer, Gemma-3 12B fp4 + 2.3 projection):
+    audio guidance 6, 30 steps, frames resized to the 960x544 training size. STG (custom node) is not available natively."""
+    api = wf(video, prompt, seed, prefix, audio_cfg)
+    api["10"]["inputs"]["unet_name"] = "ltx-2.3-22b-dev_transformer_only_int8_convrot.safetensors"
+    api["12"] = {"class_type": "DualCLIPLoader", "inputs": {"clip_name1": "gemma_3_12B_it_fp4_mixed.safetensors",
+                                                           "clip_name2": "ltx-2.3_text_projection_bf16.safetensors",
+                                                           "type": "ltxv", "device": "default"}}
+    api["13"]["inputs"]["vae_name"] = "LTX23_video_vae_bf16.safetensors"
+    api["14"]["inputs"]["vae_name"] = "LTX23_audio_vae_bf16.safetensors"
+    api["3"] = {"class_type": "ImageScale", "inputs": {"image": ["2", 0], "upscale_method": "lanczos", "width": 960, "height": 544,
+                                                      "crop": "center"}}
+    api["30"]["inputs"]["pixels"] = ["3", 0]
+    api["42"] = {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}}
+    api["43"] = {"class_type": "LTXVScheduler", "inputs": {"steps": steps, "max_shift": 2.05, "base_shift": 0.95, "stretch": True,
+                                                          "terminal": 0.1, "latent": ["33", 0]}}
+    return api
+
+
+def run23():
+    """Foley retest on LTX-2.3 dev (the model the LoRA was validated on). Same clips and prompts as run()."""
+    first = True
+    for name, clip, sid, prompt in CLIPS:
+        dst = OUT / f"{name}_ltx23_foley.wav"
+        if dst.exists(): continue
+        vn = f"foley_{clip}.mp4"; shutil.copy(EP / "clips" / f"{clip}.mp4", COMFY / "input" / vn)
+        res = rw.run(wf23(vn, prompt, 42, f"model_ab_2611/foley23_{name}"), f"foley23_{name}", 3600, keep=not first)
+        res["cold"] = first
+        with open(OUT / "results.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(res, ensure_ascii=False) + "\n")
+        if res["status"] != "success":
+            print("FAIL", name, res.get("error"), flush=True)
+            if first: return
+            continue
+        first = False
+        src = COMFY / "output" / next(o for o in res["outputs"] if o.lower().endswith((".flac", ".wav", ".mp3", ".opus")))
+        subprocess.run([FF, "-v", "error", "-y", "-i", str(src), "-ar", "48000", str(dst)], check=True)
+        subprocess.run([FF, "-v", "error", "-y", "-i", str(EP / "clips" / f"{clip}.mp4"), "-i", str(dst), "-map", "0:v", "-map", "1:a",
+                        "-c:v", "copy", "-c:a", "aac", "-shortest", str(OUT / f"{name}_ltx23_foley.mp4")], check=True)
+        print(name, res["seconds"], "s", res["peak_vram_mb"], "MB", flush=True)
+
+
 def run():
     first = True
     for name, clip, sid, prompt in CLIPS:
@@ -118,4 +160,4 @@ def blind():
 if __name__ == "__main__":
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
-    {"run": run, "blind": blind}[sys.argv[1]]()
+    {"run": run, "run23": run23, "blind": blind}[sys.argv[1]]()
