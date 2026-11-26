@@ -101,6 +101,41 @@ def kb_frame(src, p, k):
     return src.resize((W, H), Image.BICUBIC, box=(x0, y0, x0 + cw, y0 + ch))
 
 
+def whistle(kind, sr, far=False, seed=0):
+    """Synthetic signal whistle: S = short chirp (0.24 s, rising), L = long call (0.95 s, slight fall). far = distant
+    (quieter, duller, echo). Returns mono float32."""
+    rng = np.random.default_rng(seed)
+    dur = 0.24 if kind == "S" else 0.95
+    n = int(dur * sr); t = np.arange(n) / sr
+    f0 = 2050 + rng.uniform(-60, 60)
+    f = (f0 - 250 + 320 * np.minimum(1, t / 0.08)) if kind == "S" else (f0 + 120 - 260 * t / dur)
+    f = f + 18 * np.sin(2 * np.pi * 5.5 * t)                       # breath vibrato
+    w = np.sin(2 * np.pi * np.cumsum(f) / sr) + 0.12 * np.sin(4 * np.pi * np.cumsum(f) / sr)
+    w += 0.05 * rng.standard_normal(n)                              # air noise
+    a = min(int(0.025 * sr), n // 4); r = min(int(0.07 * sr), n // 3)
+    env = np.ones(n); env[:a] = np.linspace(0, 1, a); env[-r:] = np.linspace(1, 0, r)
+    w = (w * env).astype(np.float32)
+    if far:
+        k = int(sr / 2600); w = np.convolve(w, np.ones(k) / k, mode="same")      # duller
+        out = np.zeros(n + int(0.9 * sr), np.float32); out[:n] += w
+        for dl, g in ((0.11, 0.45), (0.23, 0.3), (0.41, 0.18), (0.62, 0.1)):      # ravine echo
+            i = int(dl * sr); out[i:i + n] += w * g
+        w = out * 0.35
+    return w * 0.5
+
+
+def cue_track(seq, sr, far_default=False, seed=0):
+    """seq like 'S S . L' (space-separated tokens): S/L whistles (suffix '~' = far), '.' = 0.45 s pause.
+    Gap between tokens 0.14 s. Returns mono float32."""
+    parts = []
+    for i, tok in enumerate(seq.split()):
+        if tok == ".":
+            parts.append(np.zeros(int(0.45 * sr), np.float32)); continue
+        parts.append(whistle(tok[0], sr, far=tok.endswith("~") or far_default, seed=seed + i))
+        parts.append(np.zeros(int(0.14 * sr), np.float32))
+    return np.concatenate(parts)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("story_dir"); ap.add_argument("--bgm", nargs="*", default=[])
@@ -113,19 +148,43 @@ def main():
 
     # ---- timeline + narration track
     sr = sf.info(d / "tts" / rows[0]["file"]).samplerate
-    t, prev_scene, tl, pieces = LEAD, None, [], [np.zeros(int(LEAD * sr), np.float32)]
+    # timed signal cues (annotate.json scenes[].cues = [{"line": 3, "seq": "S S . L~", "at": "after"|"before"}]):
+    # played in the clear — the narration waits for them — and mixed on the voice bus (not ducked).
+    cues_at = {}
+    if (d / "annotate.json").exists():
+        for x in json.load(open(d / "annotate.json", encoding="utf-8"))["scenes"]:
+            for c in x.get("cues", []):
+                cues_at.setdefault((x["id"], c["line"], c.get("at", "after")), []).append(c["seq"])
+    t, prev_scene, tl, pieces, sig = LEAD, None, [], [np.zeros(int(LEAD * sr), np.float32)], []
+
+    def put_cue(key):
+        nonlocal t
+        for k, seq in enumerate(cues_at.get(key, [])):
+            w = cue_track(seq, sr, seed=key[0] * 31 + key[1] * 3 + k)
+            pad = np.zeros(int(0.2 * sr), np.float32)
+            sig.append((t + 0.2, w)); pieces.append(np.concatenate([pad, np.zeros(len(w), np.float32), pad]))
+            t += (2 * len(pad) + len(w)) / sr
+            tl_cues.append(dict(scene=key[0], line=key[1], seq=seq, start=round(t - (len(pad) + len(w)) / sr, 3)))
+
+    tl_cues = []
     for r in rows:
         if prev_scene is not None:
             g = GAP_LINE + (GAP_SCENE if r["scene"] != prev_scene else 0)
             pieces.append(np.zeros(int(g * sr), np.float32)); t += g
+        put_cue((r["scene"], r["idx"], "before"))
         w, _ = sf.read(d / "tts" / r["file"], dtype="float32")
         tl.append(dict(scene=r["scene"], text=r["text"], start=round(t, 3), end=round(t + len(w) / sr, 3)))
         pieces.append(w); t += len(w) / sr; prev_scene = r["scene"]
+        put_cue((r["scene"], r["idx"], "after"))
         if a.limit_s and t > a.limit_s:
             break
     pieces.append(np.zeros(int(TAIL * sr), np.float32))
     voice = np.concatenate(pieces); total = len(voice) / sr
     voice = voice / max(1e-6, np.abs(voice).max()) * 0.8
+    for t0, w in sig:
+        i = int(t0 * sr); voice[i:i + len(w)] += w[:len(voice) - i]
+    if tl_cues:
+        print("cues", [(c["scene"], c["line"], c["seq"], c["start"]) for c in tl_cues])
     sf.write(d / "narration.wav", voice, sr)
     json.dump(tl, open(d / "timeline.json", "w", encoding="utf-8"), ensure_ascii=False, indent=1)
     # subtitle cues: each spoken line split into one-line chunks, time shared by character count

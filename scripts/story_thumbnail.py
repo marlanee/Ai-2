@@ -26,6 +26,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("key"); ap.add_argument("out"); ap.add_argument("--line", action="append", required=True)
     ap.add_argument("--size", type=int, default=104); ap.add_argument("--crop", type=int, nargs=4)
+    ap.add_argument("--top", action="store_true", help="text top-left (keeps the action in the lower half visible)")
     a = ap.parse_args()
     im = Image.open(a.key).convert("RGB")
     if a.crop:
@@ -35,7 +36,8 @@ def main():
         else im.resize((round(im.width * H / im.height), H), Image.LANCZOS)
     im = im.crop(((im.width - W) // 2, 0, (im.width - W) // 2 + W, H))
     # darken the lower third so the text pops
-    grad = Image.linear_gradient("L").resize((W, H)).point(lambda v: max(0, (v - 110) * 1.4))
+    grad = Image.linear_gradient("L").resize((W, H))
+    grad = (grad.transpose(Image.FLIP_TOP_BOTTOM) if a.top else grad).point(lambda v: max(0, (v - 110) * 1.4))
     im = Image.composite(Image.new("RGB", (W, H), (0, 0, 0)), im, grad.point(lambda v: min(170, v)))
     lines = [parse(l) for l in a.line]
     size = a.size
@@ -47,9 +49,9 @@ def main():
         size -= 4
     d = ImageDraw.Draw(im)
     lh = int(size * 1.12)
-    y = H - 34 - lh * len(lines)
+    y = 30 if a.top else H - 34 - lh * len(lines)
     for segs, w in zip(lines, widths):
-        x = (W - w) / 2
+        x = 44 if a.top else (W - w) / 2
         for c, t in segs:
             d.text((x, y), t, font=f, fill=COL[c], stroke_width=max(6, size // 11), stroke_fill=(0, 0, 0))
             x += f.getlength(t)

@@ -6,7 +6,10 @@ Stages (resumable; each skips work whose output already exists):
   script_review  GPT text-only review -> review/script_review.md (run once; revise story.json yourself, then go on)
   chars          character sheets (story_images --stage chars)
   scenes         scene images (story_images --stage scenes)
+  gptimg         story.json "gpt" stems (thumb / opening / multi-character key scenes) -> GPT image (story_gptimg.py gen)
+  stylize        other local shots re-drawn toward the GPT look with story.json "style_anchor" (story_images --stage stylize)
   qa             GPT scene QA; text-only problems -> qwen_edit erase, other problems -> regenerate with a new seed
+  lora_collect   GPT originals approved with `story_gptimg.py approve` -> style-LoRA dataset C:/AI/train/data/style_gpt
   tts            narration with the fixed voice (TTS venv)
   bgm            3 x 120 s Stable Audio tracks unless bgm/*.flac exists (story.json "bgm" = list of prompts)
   video          story_video.py -> <name>.mp4 + .srt + timeline.json
@@ -21,7 +24,8 @@ PY = sys.executable
 VPY = r"C:\AI\tts\venv\Scripts\python.exe"
 FF = r"C:\AI\tools\ffmpeg\bin\ffmpeg.exe"
 COMFY = pathlib.Path(r"C:\AI\ComfyUI\ComfyUI")
-STAGES = ["script_review", "chars", "scenes", "qa", "voices", "tts", "bgm", "sfx", "motion", "video", "thumb", "preview", "review"]
+STAGES = ["script_review", "chars", "scenes", "gptimg", "stylize", "qa", "lora_collect", "voices", "tts", "bgm", "sfx",
+          "motion", "video", "thumb", "preview", "review"]
 ERASE = ("Remove every written character, letter and calligraphy from all signboards, banners, papers and documents so "
          "they are completely blank (plain wood, plain cloth, blank paper). Keep everything else exactly identical: same "
          "people, faces, composition, colors and art style.")
@@ -63,6 +67,14 @@ def main():
             out, t = sh([ROOT / "scripts/story_gpt.py", "review_script", d]); note(f"script_review {t}s {out.strip()[-80:]}")
         elif st in ("chars", "scenes"):
             out, t = sh([ROOT / "scripts/story_images.py", d, "--stage", st]); note(f"{st} {t}s")
+        elif st == "gptimg":   # story["gpt"] stems (thumb, opening, multi-character key scenes) -> GPT image
+            if s.get("gpt"):
+                out, t = sh([ROOT / "scripts/story_gptimg.py", "gen", d]); note(f"gptimg {t}s " + " | ".join(out.split("\n")))
+        elif st == "stylize":  # remaining local shots re-drawn toward the GPT look (story["style_anchor"])
+            if s.get("style_anchor"):
+                out, t = sh([ROOT / "scripts/story_images.py", d, "--stage", "stylize"]); note(f"stylize {t}s")
+        elif st == "lora_collect":   # approved GPT originals (review/gpt_approved.json) -> C:/AI/train/data/style_gpt
+            out, t = sh([ROOT / "scripts/story_gptimg.py", "collect", d]); note(out.strip())
         elif st == "qa":
             for rnd in range(a.qa_rounds):
                 only = "" if rnd == 0 else ",".join(str(x) for x in bad_ids)

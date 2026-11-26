@@ -42,6 +42,28 @@ def edit_1ref_workflow():
     return p
 
 
+def edit_3ref_workflow():
+    """draft (image1, also the latent source) + character ref (image2) + GPT style anchor (image3)."""
+    p = WF / "image_qwen_edit_2511_3ref_api.json"
+    if p.exists():
+        return p
+    w = json.load(open(WF / "image_qwen_edit_2511_int8_api.json", encoding="utf-8"))
+    for node, img, scale in (("42", "ref2.png", "170:170"), ("43", "ref3.png", "170:171")):
+        w[node] = {"class_type": "LoadImage", "inputs": {"image": img}}
+        w[scale] = {"class_type": "FluxKontextImageScale", "inputs": {"image": [node, 0]}}
+    for n in ("170:151", "170:149"):
+        w[n]["inputs"]["image2"] = ["170:170", 0]
+        w[n]["inputs"]["image3"] = ["170:171", 0]
+    json.dump(w, open(p, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    return p
+
+
+STYLIZE = ("Redraw image 1 in exactly the art style of image 3: the same bold tapered ink line work, flat cel colors with one "
+           "shadow step, palette and simplified painterly background. Keep image 1's composition, camera, poses, blocking, "
+           "setting, season and props exactly. {who}Do not copy any person or object from image 3; image 3 is a style "
+           "reference only. No text, letters or logos.")
+
+
 def run(wf, sets, label):
     cmd = [sys.executable, str(ROOT / "scripts" / "run_workflow.py"), str(wf)]
     for k, v in sets.items():
@@ -62,6 +84,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("story_dir"); ap.add_argument("--stage", required=True)
     ap.add_argument("--only", default=""); ap.add_argument("--seed", type=int, default=1)
+    ap.add_argument("--denoise", type=float, default=0.6, help="stylize strength (draft latent kept below 1.0)")
     a = ap.parse_args()
     d = pathlib.Path(a.story_dir); s = json.load(open(d / "story.json", encoding="utf-8-sig"))
     only = {x for x in a.only.split(",") if x}
@@ -84,12 +107,13 @@ def main():
                 out, sec = t2i(p, 1104, 1472, a.seed * 7 + 3, f"story/{tag}/char_{name}", f"{tag}_char_{name}")
             shutil.copy(out, d / "chars" / f"{name}.png"); print("char", name, sec, "s", flush=True)
 
+    def female(c):
+        desc = s["characters"].get(c, "")
+        desc = desc if isinstance(desc, str) else s["characters"].get(desc.get("from", ""), "")
+        return any(w in desc.lower() for w in ("woman", "girl", "bride", "widow", "mother", "daughter"))
+
     if a.stage == "scenes":
         (d / "scenes").mkdir(exist_ok=True)
-        def female(c):
-            desc = s["characters"].get(c, "")
-            desc = desc if isinstance(desc, str) else s["characters"].get(desc.get("from", ""), "")
-            return any(w in desc.lower() for w in ("woman", "girl", "bride", "widow", "mother", "daughter"))
 
         # continuity table (GPT 02:10, standard H): story["continuity"] = {"c1": "Transplanting season, dry stone channel, ..."};
         # a scene's "cont" key appends that block to every shot of the scene so season/water/light/props never drift.
@@ -123,10 +147,49 @@ def main():
                 jobs.append((f"s{sc['id']:02d}_{'bc'[j]}", alt, (sch if sch is not None else sc["chars"])[:2]))
             for stem, desc, chars in jobs:
                 dst = d / "scenes" / f"{stem}.png"
+                if stem in s.get("gpt", []) and (d / "scenes" / "gpt" / f"{stem}.png").exists():
+                    continue   # GPT original in place (story_gptimg.py) — local never overwrites it
                 if dst.exists() and not only:
                     continue
                 out, sec = render(desc, chars, a.seed * 100 + sc["id"] + (7 if "_" in stem else 0), stem)
                 shutil.copy(out, dst); print("scene", stem, chars, sec, "s", flush=True)
+
+    if a.stage == "stylize":
+        # local shots -> GPT look: edit(draft, main character ref, GPT style anchor). story["style_anchor"] = "scenes/gpt/s11.png";
+        # shots listed in story["gpt"] are GPT originals and are never touched. Draft kept in scenes/draft/ (= done marker).
+        anchor = d / s["style_anchor"]
+        shutil.copy(anchor, COMFY / "input" / "ref3.png")
+        gpt = set(s.get("gpt", []))
+        (d / "scenes" / "draft").mkdir(exist_ok=True)
+        for sc in s["scenes"]:
+            if only and str(sc["id"]) not in only:
+                continue
+            for img in [d / "scenes" / f"s{sc['id']:02d}.png"] + sorted((d / "scenes").glob(f"s{sc['id']:02d}_[b-z].png")):
+                stem = img.stem; draft = d / "scenes" / "draft" / img.name
+                if stem in gpt or not img.exists() or (draft.exists() and not only):
+                    continue
+                if not draft.exists():
+                    shutil.copy(img, draft)
+                chars = sc["chars"]
+                if "_" in stem and sc.get("shot_chars"):   # extra shots name their own characters
+                    sch = sc["shot_chars"]["bc".index(stem[-1])]
+                    chars = sch if sch is not None else chars
+                chars = chars[:1] or [c for c in s["characters"] if c in sc.get("image", "")][:1]
+                c = chars[0] if chars else None
+                who = (f"The {'woman' if female(c) else 'man'} from image 2 keeps exactly the face, age, hair and clothes of "
+                       f"image 2. " if c else "")
+                shutil.copy(draft, COMFY / "input" / "ref1.png")
+                shutil.copy(d / "chars" / f"{c}.png" if c else anchor, COMFY / "input" / "ref2.png")
+                # denoise < 1 on the draft's own latent: at 1.0 the model re-composes and copies the anchor scene (tested
+                # 11-26 on ep5c s09); partial denoise keeps the draft's blocking and only moves line/color toward image 3.
+                out, sec = run(edit_3ref_workflow(), {"41.image": "ref1.png", "42.image": "ref2.png", "43.image": "ref3.png",
+                               "170:151.prompt": STYLIZE.format(who=who), "170:168.value": "true", "170:169.denoise": a.denoise,
+                               "170:169.seed": a.seed * 100 + sc["id"], "195.filename_prefix": f"story/{tag}/sty_{stem}"},
+                               f"{tag}_sty_{stem}")
+                shutil.copy(out, img)
+                for clip in (d / "clips").glob(f"s{sc['id']:02d}_{1 if '_' not in stem else 'bc'.index(stem[-1]) + 2}.mp4"):
+                    clip.unlink()
+                print("stylize", stem, c, sec, "s", flush=True)
 
 
 if __name__ == "__main__":
