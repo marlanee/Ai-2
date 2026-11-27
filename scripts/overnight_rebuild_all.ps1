@@ -1,0 +1,11 @@
+# Rebuild all four deliverables with the 12 s end fade (transition choices cached).
+Set-Location 'C:\Users\SSAFY\Desktop\Ai-2'
+$p2 = 'C:\AI\ComfyUI\ComfyUI\output\pool2'; $m = 'C:\AI\ComfyUI\ComfyUI\output\mm3pool'; $r = 'test_output\release'
+$d = 'test_output\themes\dystopia'
+python scripts\build_long.py --clip $d\loop_abc.mp4 --pools $d\music --duration 2700 --out $d\special_45min_dystopia.mp4 --ambience $d\ambience_bed.flac --listen-pack --seed 9 --theme dystopia --lead 23 --lead-free-min 10 --title 'Ambient Lofi for Writing & Reading | After the Fall (45 min)'
+python scripts\build_long.py --clip $r\ltx_k3_abc.mp4 --pools $p2 $m --duration 7200 --out $r\long_2h_final_v3.mp4 --exclude sa3h_pb_s504_00001.flac --ambience $r\ltx_k3_rain.flac --listen-pack --title '비 오는 80년대 서울, 레코드 가게 | 공부·작업용 시티팝 로파이 2시간'
+$e = 'test_output\themes\seoul_ep2'
+python scripts\build_long.py --clip $e\loop_abc_frozen.mp4 --pools $p2 $m --duration 7200 --out $e\long_2h_ep2.mp4 --exclude sa3h_pb_s504_00001.flac --ambience $e\ambience_bed.flac --listen-pack --seed 22 --title '비 오는 80년대 서울, 다방 창가 | 공부·작업용 시티팝 로파이 2시간'
+$c = 'test_output\themes\cyberpunk'
+python scripts\build_long.py --clip $c\loop_abc.mp4 --pools $c\music --duration 7200 --out $c\long_2h_cyberpunk.mp4 --ambience $c\ambience_bed.flac --listen-pack --seed 5 --theme cyberpunk --title 'Cyberpunk Lofi for Night Coding | Neon Rain City (2 Hours)'
+'REBUILD ALL DONE'

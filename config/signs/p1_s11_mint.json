@@ -1,0 +1,8 @@
+{
+  "fonts": {"dohyeon": "C:/AI/tools/fonts/DoHyeon-Regular.ttf", "songmyung": "C:/AI/tools/fonts/SongMyung-Regular.ttf"},
+  "signs": [
+    {"name": "big mint lightbox", "quad": [[316,24],[780,210],[780,362],[316,266]], "rect": [520,200],
+     "margin": 8, "axis": "xy", "text": "은하수레코드", "font": "dohyeon", "fill": 0.84,
+     "color": [196,48,62], "blur": 0.8, "glow": 3, "grain": 1.5}
+  ]
+}

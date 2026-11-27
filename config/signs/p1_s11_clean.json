@@ -1,0 +1,11 @@
+{
+  "fonts": {},
+  "signs": [
+    {"name": "left notice frame text", "quad": [[172,440],[233,440],[233,585],[172,585]], "rect": [61,145], "margin": 3, "axis": "xy", "text": null, "grain": 1.0},    {"name": "window purple notice", "quad": [[494,512],[509,512],[509,570],[494,570]], "rect": [15,58], "margin": 2, "axis": "x", "text": null, "grain": 1.0},
+    {"name": "door pale sheet", "quad": [[599,525],[644,525],[644,576],[599,576]], "rect": [45,51], "margin": 3, "axis": "xy", "text": null, "grain": 1.0},
+    {"name": "purple plaque by door", "quad": [[713,502],[737,502],[737,576],[713,576]], "rect": [24,74], "margin": 2, "axis": "x", "text": null, "grain": 1.0},
+    {"name": "unit label bottom-left", "quad": [[80,795],[100,795],[100,826],[80,826]], "rect": [20,31], "margin": 2, "axis": "xy", "text": null, "grain": 1.0},
+    {"name": "sticker on brown box", "quad": [[1034,728],[1064,728],[1064,751],[1034,751]], "rect": [30,23], "margin": 2, "axis": "xy", "text": null, "grain": 1.0},
+    {"name": "menu board marks", "quad": [[1538,750],[1566,750],[1566,774],[1538,774]], "rect": [28,24], "margin": 2, "axis": "xy", "text": null, "grain": 1.0}
+  ]
+}

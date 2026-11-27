@@ -64,9 +64,9 @@
 결과물은 이 저장소의 `test_output/`에 저장하되 **git에는 올리지 마** (`.gitignore`에 포함돼 있음).
 
 ## 4. 기록 (저장소에 커밋)
-- `docs/setup-log.md`: 사전 점검 결과, 설치 경로, 버전, 겪은 문제와 해결법
+- `docs/reports/2026-11-24-setup-log.md`: 사전 점검 결과, 설치 경로, 버전, 겪은 문제와 해결법
 - `config/models.yaml`: 받은 모델 목록 (이름, 파일명, 용량, ComfyUI 내 경로, 라이선스, 상업 이용 가능 여부, 출처 URL)
-- `docs/smoke-test.md`: 테스트별 설정, 시간, VRAM, 통과/실패, 소감
+- `docs/experiments/2026-11-24-smoke-test.md`: 테스트별 설정, 시간, VRAM, 통과/실패, 소감
 - 사용한 ComfyUI 워크플로는 **API 형식 JSON으로 내보내서** `workflows/` 아래 저장 (나중에 자동화 스크립트가 호출할 것)
 - 모델 파일, 생성물, 토큰은 절대 커밋하지 마.
 
