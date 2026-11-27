@@ -3,6 +3,7 @@
 | 위치 | 내용 |
 |---|---|
 | [`PROJECT_REPORT.md`](PROJECT_REPORT.md) | **전체 작업 보고서** — 타임라인, 결과물, 파이프라인 구조, 모델 선택 근거, 운영 원칙, 남은 일 |
+| [`STORY_WORKFLOW.md`](STORY_WORKFLOW.md) | 스토리 영상 동작 클립 규칙 — 얼굴 일그러짐 원인과 방지법, 검수·재생성 순서 |
 | [`reports/`](reports/) | 날짜별 작업 보고 (`YYYY-MM-DD-주제.md`) |
 | [`experiments/`](experiments/) | 모델 비교·스모크 테스트·블라인드 청취 결과 |
 

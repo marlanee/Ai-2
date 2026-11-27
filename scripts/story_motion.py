@@ -4,7 +4,10 @@
 
 Shots per scene: scenes/sNN.png (shot 1) and optional scenes/sNN_b.png, sNN_c.png ... (extra shots).
 Motion prompt per shot: scene["motion"][k] if present (should describe the story action of that moment),
-else the scene image description + 'subtle natural motion'. Output: clips/sNN_K.mp4 (resumable; delete to redo).
+else the scene image description + 'subtle natural motion, nearly static camera' (a bare 'slow push-in' made
+LTX zoom into giant faces, ep5c s02_1). Scene "seed_offset" shifts all clip seeds of a scene (redo a defect).
+Scene "anchor_end": true -> shot clips also end on the same still (end-frame strength 0.8): the face cannot drift into a
+new expression or zoom (ep5c s02_1 kept pushing into a growing open-mouth grin even with "static camera"). Output: clips/sNN_K.mp4 (resumable; delete to redo).
 
 Engines: LTX-2.5 (default). scene "motion_engine": "k6" -> Kandinsky 6 Lite distill (864x480, ~4 min/clip, video only;
   A/B 2026-11-26: best on animal/nature action, but adds people or warps props in crowded scenes -> use only there).
@@ -23,11 +26,14 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 COMFY = pathlib.Path(r"C:\AI\ComfyUI\ComfyUI")
 FF = r"C:\AI\tools\ffmpeg\bin\ffmpeg.exe"
 WF = ROOT / "workflows" / "video_ltx25_flf2v_int8_api.json"
-TAIL = (" Keep the exact same characters, faces, clothes and 2D illustration art style; smooth natural motion; no new people; "
-        "no text. Audio: quiet ambience, no music, no voices.")
-LTX_NEG_ADD = ", deformed hands, extra fingers, fused fingers, missing fingers, morphing objects, melting, warping props"
+TAIL = (" Keep the exact same characters, faces, clothes and 2D illustration art style; smooth natural motion; faces stay stable "
+        "with calm, subtle expressions; no new people; no text. Audio: quiet ambience, no music, no voices.")
+LTX_NEG_ADD = (", deformed hands, extra fingers, fused fingers, missing fingers, morphing objects, melting, warping props, "
+               "distorted face, morphing face, rolling eyes, crossed eyes, bulging eyes, exaggerated expression, grimace, "
+               "gaping mouth, head spinning, sudden zoom")
 EDIT_KEEP = (" Keep exactly the same characters, faces, ages, hair, clothes, setting, lighting, camera angle and 2D illustration "
-             "style; change only the pose/action described. No new people, no text.")
+             "style; change only the pose/action described. Keep facial expressions subtle and natural, "
+             "no exaggerated cartoon expression (no gaping mouth, no bulging eyes). No new people, no text.")
 K6_NEG = ("Static, worst quality, low quality, ugly, deformed, melting, morphing objects, morphing faces, extra people, children "
           "appearing, new characters, text, watermark, walking backwards")
 
@@ -106,7 +112,7 @@ def main():
             out = d / "clips" / f"s{sc['id']:02d}_{k}.mp4"
             if out.exists() or not img.exists():
                 continue
-            prompt = (motions[k - 1] if k - 1 < len(motions) else sc.get("image", "") + ", subtle natural motion, slow camera push-in") + TAIL
+            prompt = (motions[k - 1] if k - 1 < len(motions) else sc.get("image", "") + ", subtle natural motion, nearly static camera") + TAIL
             if sc.get("motion_engine") == "k6":
                 res = k6_clip(img, prompt.replace(" Audio: quiet ambience, no music, no voices.", ""), sc["id"] * 10 + k,
                               f"story/{d.name}/k6_s{sc['id']:02d}_{k}", f"{d.name}_k6_{sc['id']}_{k}")
@@ -119,12 +125,12 @@ def main():
             shutil.copy(img, COMFY / "input" / name)
             r = subprocess.run([sys.executable, str(ROOT / "scripts" / "run_workflow.py"), str(WF),
                                 "--set", f"31.image={name}", "--set", f"39.image={name}",
-                                "--set", "251:204.strength=0.0", "--set", "251:206.strength=1.0",
+                                "--set", f"251:204.strength={0.8 if sc.get('anchor_end') else 0.0}", "--set", "251:206.strength=1.0",
                                 "--set", f"251:252.value={prompt}", "--set", "251:250.value=false",
                                 "--set", f"251:217.text=blurry, out of focus, overexposed, underexposed, low contrast{LTX_NEG_ADD}",
                                 "--set", f"251:215.value={a.w}", "--set", f"251:216.value={a.h}",
                                 "--set", f"251:198.value={a.sec}", "--set", "251:205.value=24",
-                                "--set", f"251:196.noise_seed={sc['id'] * 10 + k}",
+                                "--set", f"251:196.noise_seed={sc['id'] * 10 + k + sc.get('seed_offset', 0)}",
                                 "--set", f"68.filename_prefix=story/{d.name}/clip_s{sc['id']:02d}_{k}",
                                 "--label", f"{d.name}_clip_{sc['id']}_{k}", "--timeout", "1800", "--keep-models"],
                                capture_output=True, text=True, encoding="utf-8", errors="replace")
@@ -167,7 +173,7 @@ def main():
                                 "--set", f"251:217.text=blurry, out of focus, overexposed, underexposed, low contrast{LTX_NEG_ADD}",
                                 "--set", f"251:215.value={a.w}", "--set", f"251:216.value={a.h}",
                                 "--set", f"251:198.value={a.sec}", "--set", "251:205.value=24",
-                                "--set", f"251:196.noise_seed={sc['id'] * 10 + K}",
+                                "--set", f"251:196.noise_seed={sc['id'] * 10 + K + sc.get('seed_offset', 0)}",
                                 "--set", f"68.filename_prefix=story/{d.name}/clip_s{sc['id']:02d}_{K}",
                                 "--label", f"{d.name}_clip_{sc['id']}_{K}", "--timeout", "1800", "--keep-models"],
                                capture_output=True, text=True, encoding="utf-8", errors="replace")
